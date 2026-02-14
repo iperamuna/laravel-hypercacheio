@@ -1,0 +1,46 @@
+{
+    "name": "iperamuna/laravel-hypercachio",
+    "description": "High-performance distributed Laravel cache driver using SQLite & HTTP.",
+    "type": "library",
+    "keywords": [
+        "laravel",
+        "cache",
+        "sqlite",
+        "distributed",
+        "performance"
+    ],
+    "authors": [
+        {
+            "name": "Indunil Peramuna",
+            "email": "iperamuna@example.com",
+            "homepage": "https://iperamuna.online"
+        }
+    ],
+    "license": "MIT",
+    "require": {
+        "php": "^8.2",
+        "ext-pdo": "*",
+        "illuminate/support": "^10.0|^11.0|^12.0",
+        "illuminate/cache": "^10.0|^11.0|^12.0",
+        "guzzlehttp/guzzle": "^7.0"
+    },
+    "require-dev": {
+        "pestphp/pest": "^2.0|^3.0",
+        "pestphp/pest-plugin-laravel": "^2.0|^3.0",
+        "orchestra/testbench": "^8.0|^9.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Iperamuna\\Hypercachio\\": "src/",
+            "Iperamuna\\Hypercachio\\Tests\\": "tests/"
+        }
+    },
+    "autoload-dev": {},
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Iperamuna\\Hypercachio\\HypercachioServiceProvider"
+            ]
+        }
+    }
+}

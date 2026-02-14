@@ -1,0 +1,10 @@
+vendor/
+.idea/
+.vscode/
+.DS_Store
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.log
+composer.lock
+phpunit.xml
