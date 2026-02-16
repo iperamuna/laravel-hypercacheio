@@ -30,10 +30,10 @@ Install the package via Composer:
 composer require iperamuna/laravel-hypercachio
 ```
 
-Publish the configuration file:
+Run the installation command to configure the package:
 
 ```bash
-php artisan vendor:publish --tag=hypercachio-config
+php artisan hypercachio:install
 ```
 
 ---

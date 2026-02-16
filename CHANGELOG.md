@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.1] - 2026-02-17
+
+### Added
+- **Install Command**: New `php artisan hypercachio:install` command to automatically configure `config/cache.php` and publish assets.
+
 ## [1.0.0] - 2026-02-17
 
 ### Added

@@ -23,6 +23,12 @@ class HypercachioServiceProvider extends ServiceProvider
 
         $this->loadRoutesFrom(__DIR__.'/../routes/hypercachio.php');
 
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                Console\InstallHypercachioCommand::class,
+            ]);
+        }
+
         $this->app->make('cache')->extend('hypercachio', function ($app, $config) {
             // Merge defaults from config/hypercachio.php with store-specific config from cache.php
             $mergedConfig = array_merge($app['config']->get('hypercachio', []), $config);
