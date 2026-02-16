@@ -13,7 +13,8 @@ We are thrilled to announce the first stable release of **Laravel Hyper-Cache-IO
     *   **Secondary Role**: Forwards write operations to the Primary node via a lightweight internal HTTP API, while reading from a local replica (or shared volume).
 *   **Atomic Operations**: robust support for `Cache::add()`, `Cache::lock()`, and atomic counters (`increment`/`decrement`), critical for high-concurrency applications.
 *   **Secure synchronization**: Internal API endpoints are secured with a configurable `api_token`.
-*   **Framework Compatibility**: Fully compatible with Laravel 10.x, 11.x, and the upcoming 12.x.
+*   **Framework Compatibility**: Fully compatible with Laravel 10.x, 11.x, and 12.x on PHP 8.2, 8.3, and 8.4.
+*   **Robust CI/CD**: Integrated GitHub Actions workflow test matrix across all supported PHP and Laravel versions.
 
 ## 🛠 Improvements in v1.0.0
 
@@ -21,6 +22,7 @@ We are thrilled to announce the first stable release of **Laravel Hyper-Cache-IO
 *   **Enhanced Reliability**: Added "Primary-only" fallback logic allowing the driver to function as a standalone robust cache without needing a secondary node.
 *   **Strict Typing**: Improved internal type safety and error handling.
 *   **Comprehensive Testing**: Added extensive integration tests covering both Primary and Secondary roles to ensure stability.
+*   **CI/CD Hardening**: Resolved dependency conflicts for Laravel 12 and optimized driver registration timing for testing environments.
 
 ## 📦 Installation
 
