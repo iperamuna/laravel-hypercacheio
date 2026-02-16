@@ -1,29 +1,19 @@
-# Release Notes - v1.0.1
+# Release Notes - v1.0.2
 
 **Laravel Hyper-Cache-IO**
 
-We are pleased to release **v1.0.1**, which introduces improved CLI tooling for easier installation and enhanced CI reliability.
+This patch release resolves a critical issue with atomic locking where the storage driver was missing the `LockProvider` implementation.
 
-## 🚀 Enhancements
+## 🛠 Fixes
 
-*   **New Install Command**: Running `php artisan hypercachio:install` now automates the setup process by publishing configuration files and automatically injecting the `hypercachio` store configuration into your `config/cache.php`, resolving issues where the cache store wasn't detected by other packages (e.g., Spatie Permission).
-*   **Command Line Integration**: The installer handles `vendor:publish` and clears the configuration cache (`config:clear`) to ensure immediate availability of the new driver.
+*   **Fixed**: "Call to undefined method `HypercachioStore::lock()`" error. The main store class now correctly implements `Illuminate\Contracts\Cache\LockProvider`.
+*   **Added**: Native support for `Cache::lock()` and `Cache::restoreLock()` methods.
+*   **Distributed Locking**: Locks are now correctly managed via the `cache_locks` table (on Primary) or forwarded via API (from Secondary), ensuring atomic operations across distributed nodes.
 
-## 🛠 Fixes & Improvements
-
-*   **CI/CD Stability**: Resolved "Driver not supported" errors in test environments by optimizing when and how the cache driver is registered in the Service Provider.
-*   **Style Compliance**: Applied Laravel Pint formatting across the codebase to ensure PSR-12 standard compliance.
-*   **Robust Testing**: Added a dedicated feature test (`InstallCommandTest`) to verify the installation command correctly modifies configuration files without duplication.
-
-## 📦 Installation
-
-To upgrade or install freshly:
+## 📦 Upgrade
 
 ```bash
-composer require iperamuna/laravel-hypercachio
-php artisan hypercachio:install
+composer update iperamuna/laravel-hypercachio
 ```
 
-## 🙏 Acknowledgements
-
-Developed with ❤️ by [Indunil Peramuna](https://iperamuna.online).
+This update is drop-in compatible and recommended for all users.

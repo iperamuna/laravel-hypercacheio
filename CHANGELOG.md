@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.2] - 2026-02-17
+
+### Added
+- **Atomic Locking**: Implemented `LockProvider` interface in `HypercachioStore` to support `Cache::lock()` natively.
+- **Distributed Locks**: Added `HypercachioLock` class to handle lock acquisition and release across Primary/Secondary nodes.
+
 ## [1.0.1] - 2026-02-17
 
 ### Added

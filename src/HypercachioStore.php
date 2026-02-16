@@ -2,10 +2,11 @@
 
 namespace Iperamuna\Hypercachio;
 
+use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Contracts\Cache\Store;
 use Illuminate\Support\Facades\Http;
 
-class HypercachioStore implements Store
+class HypercachioStore implements LockProvider, Store
 {
     /**
      * The local L1 cache array.
@@ -312,5 +313,83 @@ class HypercachioStore implements Store
         }
 
         return $results;
+    }
+
+    public function lock($name, $seconds = 0, $owner = null)
+    {
+        return new HypercachioLock($this, $name, $seconds, $owner);
+    }
+
+    public function restoreLock($name, $owner)
+    {
+        return new HypercachioLock($this, $name, 0, $owner);
+    }
+
+    public function acquireLock($key, $owner, $seconds)
+    {
+        $prefixedKey = $this->prefix.$key;
+        $expiration = time() + $seconds;
+
+        if ($this->role === 'primary') {
+            try {
+                $stmt = $this->sqlite->prepare('INSERT INTO cache_locks(key, owner, expiration) VALUES(:key, :owner, :exp)');
+                $stmt->execute([':key' => $prefixedKey, ':owner' => $owner, ':exp' => $expiration]);
+
+                return true;
+            } catch (\PDOException $e) {
+                // Check if expired
+                $stmt = $this->sqlite->prepare('SELECT expiration FROM cache_locks WHERE key=:key');
+                $stmt->execute([':key' => $prefixedKey]);
+                $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+                if ($row && $row['expiration'] < time()) {
+                    $stmt = $this->sqlite->prepare('UPDATE cache_locks SET owner=:owner, expiration=:exp WHERE key=:key');
+                    $stmt->execute([':key' => $prefixedKey, ':owner' => $owner, ':exp' => $expiration]);
+
+                    return true;
+                }
+
+                return false;
+            }
+        } else {
+            // Secondary
+            $response = $this->doRequest('post', "lock/{$prefixedKey}", [
+                'owner' => $owner,
+                'ttl' => $seconds,
+            ]);
+
+            return $response['acquired'] ?? false;
+        }
+    }
+
+    public function releaseLock($key, $owner)
+    {
+        $prefixedKey = $this->prefix.$key;
+
+        if ($this->role === 'primary') {
+            $stmt = $this->sqlite->prepare('DELETE FROM cache_locks WHERE key=:key AND owner=:owner');
+            $stmt->execute([':key' => $prefixedKey, ':owner' => $owner]);
+
+            return $stmt->rowCount() > 0;
+        } else {
+            $response = $this->doRequest('delete', "lock/{$prefixedKey}", [
+                'owner' => $owner,
+            ]);
+
+            return $response['released'] ?? false;
+        }
+    }
+
+    public function getLockOwner($key)
+    {
+        $prefixedKey = $this->prefix.$key;
+        if ($this->role === 'primary') {
+            $stmt = $this->sqlite->prepare('SELECT owner FROM cache_locks WHERE key=:key');
+            $stmt->execute([':key' => $prefixedKey]);
+
+            return $stmt->fetchColumn() ?: '';
+        }
+
+        return '';
     }
 }

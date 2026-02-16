@@ -136,17 +136,17 @@ class CacheController extends Controller
      * @param  string  $key
      * @return \Illuminate\Http\JsonResponse
      */
-    public function lock($key)
+    public function lock(Request $request, $key)
     {
-        $owner = uniqid();
-        $ttlRaw = request()->query('ttl', 10);
-        $ttl = time() + $ttlRaw;
+        $owner = $request->input('owner');
+        $ttlRaw = $request->input('ttl');
+        $ttl = time() + (int) $ttlRaw;
 
         try {
             $stmt = $this->sqlite->prepare('INSERT INTO cache_locks(key, owner, expiration) VALUES(:key, :owner, :exp)');
             $stmt->execute([':key' => $key, ':owner' => $owner, ':exp' => $ttl]);
 
-            return response()->json(['acquired' => true, 'owner' => $owner]);
+            return response()->json(['acquired' => true]);
         } catch (\PDOException $e) {
             $stmt = $this->sqlite->prepare('SELECT expiration FROM cache_locks WHERE key=:key');
             $stmt->execute([':key' => $key]);
@@ -157,7 +157,7 @@ class CacheController extends Controller
                 $stmt = $this->sqlite->prepare('UPDATE cache_locks SET owner=:owner, expiration=:exp WHERE key=:key');
                 $stmt->execute([':key' => $key, ':owner' => $owner, ':exp' => $ttl]);
 
-                return response()->json(['acquired' => true, 'owner' => $owner]);
+                return response()->json(['acquired' => true]);
             }
 
             return response()->json(['acquired' => false]);
@@ -172,10 +172,10 @@ class CacheController extends Controller
      */
     public function releaseLock(Request $request, $key)
     {
-        $owner = $request->query('owner') ?? '';
+        $owner = $request->input('owner');
         $stmt = $this->sqlite->prepare('DELETE FROM cache_locks WHERE key=:key AND owner=:owner');
         $stmt->execute([':key' => $key, ':owner' => $owner]);
 
-        return response()->json(['released' => true]);
+        return response()->json(['released' => $stmt->rowCount() > 0]);
     }
 }
