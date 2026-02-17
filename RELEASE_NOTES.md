@@ -1,28 +1,34 @@
-# Release Notes - v1.1.0
+# Release Notes - v1.2.0
 
 **Laravel Hyper-Cache-IO**
 
-We are excited to announce **v1.1.0**, which brings improvements to how the SQLite backend is stored and better integration with project version control.
+This version introduces a complete rebrand of the package from **Hypercachio** to **Hypercacheio**.
 
-## 🚀 Enhancements
+## 🔄 Rebranding & Renaming
 
-*   **SQLite Storage Directory**: The `sqlite_path` configuration now defines a directory. The database is stored as `hypercachio.sqlite` within this directory. This allows the associated journaling files (WAL and SHM) to be contained within a dedicated folder, keeping your storage directory clean.
-*   **Automated .gitignore Integration**: The `hypercachio:install` command now automatically adds the default storage directory (`/storage/cache/hypercachio/`) to your project's `.gitignore` file.
-*   **Developer Experience**: Added detailed documentation blocks to the configuration file, specifically for the `async_requests` setting.
-*   **Installation Advice**: The installer now provides helpful advice regarding `.gitignore` maintenance if manual path changes are performed.
+*   **Namespace Change**: All classes are now under the `Iperamuna\Hypercacheio` namespace.
+*   **Class Renaming**: Core classes have been renamed (e.g., `HypercachioStore` -> `HypercacheioStore`).
+*   **Configuration**: The config file is now `config/hypercacheio.php` and uses refined environment variables with the `HYPERCACHEIO_` prefix.
+*   **Artisan Command**: The installation command is now `php artisan hypercacheio:install`.
+*   **Routes**: Internal API routes now use the `/api/hypercacheio` prefix by default.
 
-## 🛠 Internal Changes
+## 📦 Upgrade Guide
 
-*   **Refactored Initializer**: The `HypercachioStore` and `CacheController` now correctly initialize the storage directory and database file separately.
-*   **Updated Test Suite**: Comprehensive tests added to verify directory creation and `.gitignore` automation.
+If you are upgrading from `v1.1.0` or earlier:
 
-## 📦 Upgrade
-
-```bash
-composer update iperamuna/laravel-hypercachio
-```
-
-> **Note**: If you are upgrading from `v1.0.x`, please update your `config/hypercachio.php` to use a directory path for `sqlite_path`, or simply run `php artisan hypercachio:install` to refresh your configuration (be sure to backup any existing configuration if needed).
+1.  **Update Composer**:
+    ```bash
+    composer require iperamuna/laravel-hypercacheio:^1.2
+    ```
+2.  **Update Configuration**:
+    Rename your `config/hypercachio.php` to `config/hypercacheio.php` and update the array keys. Alternatively, run the new install command:
+    ```bash
+    php artisan hypercacheio:install
+    ```
+3.  **Update Environment Variables**:
+    Search your `.env` for `HYPERCACHIO_` and replace with `HYPERCACHEIO_`.
+4.  **Update Code References**:
+    Any direct references to `Hypercachio` classes or the `hypercachio` cache driver should be updated to `Hypercacheio` and `hypercacheio` respectively.
 
 ## 🙏 Acknowledgements
 

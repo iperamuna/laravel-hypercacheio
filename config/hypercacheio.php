@@ -4,12 +4,12 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Hypercachio Internal API Endpoint
+    | Hypercacheio Internal API Endpoint
     |--------------------------------------------------------------------------
     | The internal API URL each server exposes for cache operations.
-    | Example: '/api/hypercachio' (routes handled by Laravel)
+    | Example: '/api/hypercacheio' (routes handled by Laravel)
     */
-    'api_url' => '/api/hypercachio',
+    'api_url' => '/api/hypercacheio',
 
     /*
     |--------------------------------------------------------------------------
@@ -19,16 +19,16 @@ return [
     | - 'primary' : writes go to local SQLite
     | - 'secondary' : writes are forwarded to primary
     */
-    'role' => env('HYPERCACHIO_SERVER_ROLE', 'primary'),
+    'role' => env('HYPERCACHEIO_SERVER_ROLE', 'primary'),
 
     /*
     |--------------------------------------------------------------------------
     | Primary Server URL
     |--------------------------------------------------------------------------
     | Required only if 'role' is secondary. All writes are forwarded here.
-    | Must include HTTPS if SSL is used (e.g., 'https://server1.domain.com/api/hypercachio')
+    | Must include HTTPS if SSL is used (e.g., 'https://server1.domain.com/api/hypercacheio')
     */
-    'primary_url' => env('HYPERCACHIO_PRIMARY_URL', 'http://127.0.0.1/api/hypercachio'),
+    'primary_url' => env('HYPERCACHEIO_PRIMARY_URL', 'http://127.0.0.1/api/hypercacheio'),
 
     /*
     |--------------------------------------------------------------------------
@@ -38,17 +38,17 @@ return [
     | Each secondary only needs 'url'.
     */
     'secondaries' => [
-        // ['url' => 'http://server2.domain.com/api/hypercachio'],
+        // ['url' => 'http://server2.domain.com/api/hypercacheio'],
     ],
 
     /*
     |--------------------------------------------------------------------------
     | SQLite Storage Directory
     |--------------------------------------------------------------------------
-    | The directory where the SQLite database ('hypercachio.sqlite') and its
+    | The directory where the SQLite database ('hypercacheio.sqlite') and its
     | associated files (WAL, SHM) will be stored locally.
     */
-    'sqlite_path' => storage_path('cache/hypercachio'),
+    'sqlite_path' => storage_path('cache/hypercacheio'),
 
     /*
     |--------------------------------------------------------------------------
@@ -63,7 +63,7 @@ return [
     |--------------------------------------------------------------------------
     | Shared secret between servers to validate requests.
     */
-    'api_token' => env('HYPERCACHIO_API_TOKEN', 'changeme'),
+    'api_token' => env('HYPERCACHEIO_API_TOKEN', 'changeme'),
 
     /*
     |--------------------------------------------------------------------------
@@ -72,6 +72,6 @@ return [
     | If enabled, write operations in secondary role will be fired
     | asynchronously to improve performance (fire-and-forget).
     */
-    'async_requests' => env('HYPERCACHIO_ASYNC', true),
+    'async_requests' => env('HYPERCACHEIO_ASYNC', true),
 
 ];

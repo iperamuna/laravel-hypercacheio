@@ -1,15 +1,15 @@
 <?php
 
 use Illuminate\Support\Facades\Cache;
-use Iperamuna\Hypercachio\HypercachioStore;
+use Iperamuna\Hypercacheio\HypercacheioStore;
 
 it('can acquire and release atomic locks', function () {
-    $lock = Cache::store('hypercachio')->lock('foo', 10);
+    $lock = Cache::store('hypercacheio')->lock('foo', 10);
 
     expect($lock->get())->toBeTrue();
 
     // Lock is held
-    $lock2 = Cache::store('hypercachio')->lock('foo', 10);
+    $lock2 = Cache::store('hypercacheio')->lock('foo', 10);
     expect($lock2->get())->toBeFalse();
 
     // Release
@@ -22,11 +22,11 @@ it('can acquire and release atomic locks', function () {
 
 it('can manipulate locks via owner', function () {
     // Get the underlying store
-    $repository = Cache::store('hypercachio');
+    $repository = Cache::store('hypercacheio');
     $store = $repository->getStore();
 
-    if (! $store instanceof HypercachioStore) {
-        $this->markTestSkipped('Not using HypercachioStore');
+    if (! $store instanceof HypercacheioStore) {
+        $this->markTestSkipped('Not using HypercacheioStore');
     }
 
     // Manually acquire

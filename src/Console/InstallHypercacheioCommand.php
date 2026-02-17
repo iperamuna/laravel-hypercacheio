@@ -1,18 +1,18 @@
 <?php
 
-namespace Iperamuna\Hypercachio\Console;
+namespace Iperamuna\Hypercacheio\Console;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 
-class InstallHypercachioCommand extends Command
+class InstallHypercacheioCommand extends Command
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'hypercachio:install';
+    protected $signature = 'hypercacheio:install';
 
     /**
      * The console command description.
@@ -32,7 +32,7 @@ class InstallHypercachioCommand extends Command
 
         // Publish configuration
         $this->call('vendor:publish', [
-            '--tag' => 'hypercachio-config',
+            '--tag' => 'hypercacheio-config',
             '--force' => true,
         ]);
 
@@ -45,8 +45,8 @@ class InstallHypercachioCommand extends Command
         $this->call('config:clear');
 
         $this->info('Hyper-Cache-IO installed successfully!');
-        $this->warn('Please ensure your .env file has CACHE_DRIVER=hypercachio set if you want to use it as the default driver.');
-        $this->info('Advice: If you change the "sqlite_path" in config/hypercachio.php, remember to update your .gitignore accordingly.');
+        $this->warn('Please ensure your .env file has CACHE_DRIVER=hypercacheio set if you want to use it as the default driver.');
+        $this->info('Advice: If you change the "sqlite_path" in config/hypercacheio.php, remember to update your .gitignore accordingly.');
 
         return 0;
     }
@@ -59,7 +59,7 @@ class InstallHypercachioCommand extends Command
     protected function updateGitignore()
     {
         $gitignorePath = base_path('.gitignore');
-        $ignoreEntry = '/storage/cache/hypercachio/';
+        $ignoreEntry = '/storage/cache/hypercacheio/';
 
         if (! file_exists($gitignorePath)) {
             return;
@@ -69,7 +69,7 @@ class InstallHypercachioCommand extends Command
 
         if (! Str::contains($content, $ignoreEntry)) {
             file_put_contents($gitignorePath, "\n".$ignoreEntry."\n", FILE_APPEND);
-            $this->info('Added Hypercachio storage directory to .gitignore.');
+            $this->info('Added Hypercacheio storage directory to .gitignore.');
         }
     }
 
@@ -90,13 +90,13 @@ class InstallHypercachioCommand extends Command
 
         $configContent = file_get_contents($configPath);
 
-        if (Str::contains($configContent, "'hypercachio' => [")) {
-            $this->info('Hypercachio store already configured in cache.php.');
+        if (Str::contains($configContent, "'hypercacheio' => [")) {
+            $this->info('Hypercacheio store already configured in cache.php.');
 
             return;
         }
 
-        $storeConfig = "\n        'hypercachio' => [\n            'driver' => 'hypercachio',\n        ],";
+        $storeConfig = "\n        'hypercacheio' => [\n            'driver' => 'hypercacheio',\n        ],";
 
         // Attempt to insert into the stores array
         // We look for 'stores' => [ and append after it, or ideally before the closing ] of the stores array.
@@ -107,10 +107,10 @@ class InstallHypercachioCommand extends Command
         if (preg_match("/('stores'\s*=>\s*\[)/", $configContent, $matches)) {
             $configContent = str_replace($matches[0], $matches[0].$storeConfig, $configContent);
             file_put_contents($configPath, $configContent);
-            $this->info('Added hypercachio store to cache.php.');
+            $this->info('Added hypercacheio store to cache.php.');
         } else {
-            $this->warn('Could not automatically add hypercachio to cache.php. Please add it manually:');
-            $this->line("'hypercachio' => ['driver' => 'hypercachio'],");
+            $this->warn('Could not automatically add hypercacheio to cache.php. Please add it manually:');
+            $this->line("'hypercacheio' => ['driver' => 'hypercacheio'],");
         }
     }
 }

@@ -1,11 +1,11 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Iperamuna\Hypercachio\Http\Controllers\CacheController;
-use Iperamuna\Hypercachio\Http\Middleware\HyperCachioSecurity;
+use Iperamuna\Hypercacheio\Http\Controllers\CacheController;
+use Iperamuna\Hypercacheio\Http\Middleware\HyperCacheioSecurity;
 
-Route::prefix(config('hypercachio.api_url'))
-    ->middleware([HyperCachioSecurity::class])
+Route::prefix(config('hypercacheio.api_url'))
+    ->middleware([HyperCacheioSecurity::class])
     ->group(function () {
         Route::get('/cache/{key}', [CacheController::class, 'get']);
         Route::post('/add/{key}', [CacheController::class, 'add']);

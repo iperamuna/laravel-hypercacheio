@@ -2,23 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-02-17
+
+### Changed
+- **Renaming**: Rebranded the package from **Hypercachio** to **Hypercacheio** throughout the entire codebase, including namespaces, class names, configuration files, and environment variables.
+
 ## [1.1.0] - 2026-02-17
 
 ### Added
-- **SQLite Directory Storage**: Changed `sqlite_path` to define a directory instead of a file. The actual database is now stored as `hypercachio.sqlite` within this folder, allowing for better organization of associated WAL and SHM files.
-- **Automated .gitignore**: The `hypercachio:install` command now automatically adds the default storage directory to the project's `.gitignore`.
+- **SQLite Directory Storage**: Changed `sqlite_path` to define a directory instead of a file. The actual database is now stored as `hypercacheio.sqlite` within this folder, allowing for better organization of associated WAL and SHM files.
+- **Automated .gitignore**: The `hypercacheio:install` command now automatically adds the default storage directory to the project's `.gitignore`.
 - **Enhanced Documentation**: Added missing doc blocks in the configuration for better developer experience.
 
 ## [1.0.2] - 2026-02-17
 
 ### Added
-- **Atomic Locking**: Implemented `LockProvider` interface in `HypercachioStore` to support `Cache::lock()` natively.
-- **Distributed Locks**: Added `HypercachioLock` class to handle lock acquisition and release across Primary/Secondary nodes.
+- **Atomic Locking**: Implemented `LockProvider` interface in `HypercacheioStore` to support `Cache::lock()` natively.
+- **Distributed Locks**: Added `HypercacheioLock` class to handle lock acquisition and release across Primary/Secondary nodes.
 
 ## [1.0.1] - 2026-02-17
 
 ### Added
-- **Install Command**: New `php artisan hypercachio:install` command to automatically configure `config/cache.php` and publish assets.
+- **Install Command**: New `php artisan hypercacheio:install` command to automatically configure `config/cache.php` and publish assets.
 
 ## [1.0.0] - 2026-02-17
 
@@ -31,5 +36,5 @@ All notable changes to this project will be documented in this file.
 - **Security**: Token-based authentication for internal API communication.
 
 ### Changed
-- **Driver Architecture**: Refactored `HypercachioStore` for better dependency injection and testing.
+- **Driver Architecture**: Refactored `HypercacheioStore` for better dependency injection and testing.
 - **Configuration**: Simplified configuration with specific `role` and `primary_url` settings.

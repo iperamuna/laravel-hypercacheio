@@ -1,22 +1,22 @@
 <?php
 
-namespace Iperamuna\Hypercachio;
+namespace Iperamuna\Hypercacheio;
 
 use Illuminate\Cache\Lock;
 
-class HypercachioLock extends Lock
+class HypercacheioLock extends Lock
 {
     /**
-     * The Hypercachio store instance.
+     * The Hypercacheio store instance.
      *
-     * @var \Iperamuna\Hypercachio\HypercachioStore
+     * @var \Iperamuna\Hypercacheio\HypercacheioStore
      */
     protected $store;
 
     /**
      * Create a new lock instance.
      *
-     * @param  \Iperamuna\Hypercachio\HypercachioStore  $store
+     * @param  \Iperamuna\Hypercacheio\HypercacheioStore  $store
      * @param  string  $name
      * @param  int  $seconds
      * @param  string|null  $owner

@@ -1,8 +1,8 @@
 <?php
 
-namespace Iperamuna\Hypercachio\Tests;
+namespace Iperamuna\Hypercacheio\Tests;
 
-use Iperamuna\Hypercachio\HypercachioServiceProvider;
+use Iperamuna\Hypercacheio\HypercacheioServiceProvider;
 use Orchestra\Testbench\TestCase as BaseTestCase;
 
 class TestCase extends BaseTestCase
@@ -10,18 +10,18 @@ class TestCase extends BaseTestCase
     protected function getPackageProviders($app)
     {
         return [
-            HypercachioServiceProvider::class,
+            HypercacheioServiceProvider::class,
         ];
     }
 
     protected function getEnvironmentSetUp($app)
     {
-        $app['config']->set('hypercachio.role', 'primary');
-        $app['config']->set('hypercachio.primary_url', 'http://test-server.test/api/hypercachio');
-        $app['config']->set('hypercachio.async_requests', false);
-        $app['config']->set('hypercachio.sqlite_path', __DIR__.'/temp');
-        $app['config']->set('cache.stores.hypercachio', [
-            'driver' => 'hypercachio',
+        $app['config']->set('hypercacheio.role', 'primary');
+        $app['config']->set('hypercacheio.primary_url', 'http://test-server.test/api/hypercacheio');
+        $app['config']->set('hypercacheio.async_requests', false);
+        $app['config']->set('hypercacheio.sqlite_path', __DIR__.'/temp');
+        $app['config']->set('cache.stores.hypercacheio', [
+            'driver' => 'hypercacheio',
         ]);
     }
 

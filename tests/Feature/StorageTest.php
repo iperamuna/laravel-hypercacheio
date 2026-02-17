@@ -9,12 +9,12 @@ it('creates the sqlite database inside the specified directory', function () {
         File::makeDirectory($tempDir, 0755, true);
     }
 
-    config(['hypercachio.sqlite_path' => $tempDir]);
+    config(['hypercacheio.sqlite_path' => $tempDir]);
 
     // Trigger store initialization
-    Cache::store('hypercachio')->put('test_storage', 'ok', 60);
+    Cache::store('hypercacheio')->put('test_storage', 'ok', 60);
 
-    expect(File::exists($tempDir.'/hypercachio.sqlite'))->toBeTrue();
+    expect(File::exists($tempDir.'/hypercacheio.sqlite'))->toBeTrue();
 
     // Cleanup
     File::deleteDirectory($tempDir);

@@ -1,5 +1,5 @@
 {
-    "name": "iperamuna/laravel-hypercachio",
+    "name": "iperamuna/laravel-hypercacheio",
     "description": "High-performance distributed Laravel cache driver using SQLite & HTTP.",
     "type": "library",
     "keywords": [
@@ -32,8 +32,8 @@
     },
     "autoload": {
         "psr-4": {
-            "Iperamuna\\Hypercachio\\": "src/",
-            "Iperamuna\\Hypercachio\\Tests\\": "tests/"
+            "Iperamuna\\Hypercacheio\\": "src/",
+            "Iperamuna\\Hypercacheio\\Tests\\": "tests/"
         }
     },
     "autoload-dev": {},
@@ -45,7 +45,7 @@
     "extra": {
         "laravel": {
             "providers": [
-                "Iperamuna\\Hypercachio\\HypercachioServiceProvider"
+                "Iperamuna\\Hypercacheio\\HypercacheioServiceProvider"
             ]
         }
     }

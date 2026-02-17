@@ -1,8 +1,8 @@
 # Laravel Hyper-Cache-IO
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/iperamuna/laravel-hypercachio.svg?style=flat-square)](https://packagist.org/packages/iperamuna/laravel-hypercachio)
-[![Total Downloads](https://img.shields.io/packagist/dt/iperamuna/laravel-hypercachio.svg?style=flat-square)](https://packagist.org/packages/iperamuna/laravel-hypercachio)
-[![License](https://img.shields.io/packagist/l/iperamuna/laravel-hypercachio.svg?style=flat-square)](https://packagist.org/packages/iperamuna/laravel-hypercachio)
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/iperamuna/laravel-hypercacheio.svg?style=flat-square)](https://packagist.org/packages/iperamuna/laravel-hypercacheio)
+[![Total Downloads](https://img.shields.io/packagist/dt/iperamuna/laravel-hypercacheio.svg?style=flat-square)](https://packagist.org/packages/iperamuna/laravel-hypercacheio)
+[![License](https://img.shields.io/packagist/l/iperamuna/laravel-hypercacheio.svg?style=flat-square)](https://packagist.org/packages/iperamuna/laravel-hypercacheio)
 
 **Laravel Hyper-Cache-IO** is an ultra-fast, distributed cache driver for Laravel applications. By combining **L1 in-memory caching** with a persistent **SQLite WAL backend**, it delivers exceptional performance and reliability without the overhead of Redis or Memcached.
 
@@ -27,13 +27,13 @@ Designed for modern PHP environments like **FrankenPHP**, **Swoole**, and tradit
 Install the package via Composer:
 
 ```bash
-composer require iperamuna/laravel-hypercachio
+composer require iperamuna/laravel-hypercacheio
 ```
 
 Run the installation command to configure the package:
 
 ```bash
-php artisan hypercachio:install
+php artisan hypercacheio:install
 ```
 
 ---
@@ -42,10 +42,10 @@ php artisan hypercachio:install
 
 ### 1. Set the Cache Driver
 
-Update your `.env` file to use `hypercachio`:
+Update your `.env` file to use `hypercacheio`:
 
 ```dotenv
-CACHE_DRIVER=hypercachio
+CACHE_DRIVER=hypercacheio
 ```
 
 ### 2. Configure Server Roles
@@ -56,22 +56,22 @@ Hyper-Cache-IO uses a simple **Primary/Secondary** architecture. You can also ru
 A single "Primary" node handles all write operations to the database.
 
 ```dotenv
-HYPERCACHIO_SERVER_ROLE=primary
-HYPERCACHIO_API_TOKEN=your-secr3t-t0ken-here
+HYPERCACHEIO_SERVER_ROLE=primary
+HYPERCACHEIO_API_TOKEN=your-secr3t-t0ken-here
 ```
 
 #### Secondary Server (Reader)
 "Secondary" nodes read from their local copy (synced via shared volume or future replication features) and forward writes to the Primary via HTTP.
 
 ```dotenv
-HYPERCACHIO_SERVER_ROLE=secondary
-HYPERCACHIO_PRIMARY_URL=http://<primary-server-ip>/api/hypercachio
-HYPERCACHIO_API_TOKEN=your-secr3t-t0ken-here
+HYPERCACHEIO_SERVER_ROLE=secondary
+HYPERCACHEIO_PRIMARY_URL=http://<primary-server-ip>/api/hypercacheio
+HYPERCACHEIO_API_TOKEN=your-secr3t-t0ken-here
 ```
 
 ### 3. Advanced Configuration
 
-You can fine-tune timeouts, paths, and behavior in `config/hypercachio.php`:
+You can fine-tune timeouts, paths, and behavior in `config/hypercacheio.php`:
 
 ```php
 return [
@@ -86,7 +86,7 @@ return [
     | - Secondary: Forwards writes to the Primary via HTTP.
     |
     */
-    'role' => env('HYPERCACHIO_SERVER_ROLE', 'primary'),
+    'role' => env('HYPERCACHEIO_SERVER_ROLE', 'primary'),
 
     /*
     |--------------------------------------------------------------------------
@@ -97,7 +97,7 @@ return [
     | Required only if this server is a 'secondary' node.
     |
     */
-    'primary_url' => env('HYPERCACHIO_PRIMARY_URL', 'http://127.0.0.1/api/hypercachio'),
+    'primary_url' => env('HYPERCACHEIO_PRIMARY_URL', 'http://127.0.0.1/api/hypercacheio'),
 
     /*
     |--------------------------------------------------------------------------
@@ -107,7 +107,7 @@ return [
     | A shared secret token to secure internal API communications between nodes.
     |
     */
-    'api_token' => env('HYPERCACHIO_API_TOKEN', 'change_me_to_a_secure_token'),
+    'api_token' => env('HYPERCACHEIO_API_TOKEN', 'change_me_to_a_secure_token'),
 
     /*
     |--------------------------------------------------------------------------
@@ -135,11 +135,11 @@ return [
     | SQLite Storage Directory
     |--------------------------------------------------------------------------
     |
-    | The absolute path to the directory where the 'hypercachio.sqlite' database 
+    | The absolute path to the directory where the 'hypercacheio.sqlite' database 
     | and its associated files (WAL, SHM) will be stored.
     |
     */
-    'sqlite_path' => storage_path('cache/hypercachio'),
+    'sqlite_path' => storage_path('cache/hypercacheio'),
 
 ];
 ```
@@ -180,16 +180,16 @@ if ($lock->get()) {
 
 ## 🔌 Internal API
 
-The package exposes a lightweight internal API for node synchronization. Each endpoint is secured via `X-Hypercachio-Token`.
+The package exposes a lightweight internal API for node synchronization. Each endpoint is secured via `X-Hypercacheio-Token`.
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/api/hypercachio/cache/{key}` | Fetch a cached item |
-| `POST` | `/api/hypercachio/cache/{key}` | Upsert (Create/Update) an item |
-| `POST` | `/api/hypercachio/add/{key}` | Atomic "Add" operation |
-| `DELETE` | `/api/hypercachio/cache/{key}` | Remove an item |
-| `POST` | `/api/hypercachio/lock/{key}` | Acquire an atomic lock |
-| `DELETE` | `/api/hypercachio/lock/{key}` | Release an atomic lock |
+| `GET` | `/api/hypercacheio/cache/{key}` | Fetch a cached item |
+| `POST` | `/api/hypercacheio/cache/{key}` | Upsert (Create/Update) an item |
+| `POST` | `/api/hypercacheio/add/{key}` | Atomic "Add" operation |
+| `DELETE` | `/api/hypercacheio/cache/{key}` | Remove an item |
+| `POST` | `/api/hypercacheio/lock/{key}` | Acquire an atomic lock |
+| `DELETE` | `/api/hypercacheio/lock/{key}` | Release an atomic lock |
 
 ---
 
@@ -198,7 +198,7 @@ The package exposes a lightweight internal API for node synchronization. Each en
 You can run the full test suite (Unit & Integration) using Pest:
 
 ```bash
-vendor/bin/pest laravel-hypercachio/tests
+vendor/bin/pest laravel-hypercacheio/tests
 ```
 
 ---

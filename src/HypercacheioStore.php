@@ -1,12 +1,12 @@
 <?php
 
-namespace Iperamuna\Hypercachio;
+namespace Iperamuna\Hypercacheio;
 
 use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Contracts\Cache\Store;
 use Illuminate\Support\Facades\Http;
 
-class HypercachioStore implements LockProvider, Store
+class HypercacheioStore implements LockProvider, Store
 {
     /**
      * The local L1 cache array.
@@ -49,7 +49,7 @@ class HypercachioStore implements LockProvider, Store
     protected ?\PDO $sqlite = null;
 
     /**
-     * Create a new Hypercachio store instance.
+     * Create a new Hypercacheio store instance.
      *
      * @return void
      */
@@ -62,7 +62,7 @@ class HypercachioStore implements LockProvider, Store
         $this->async = $config['async_requests'] ?? true;
 
         if ($this->role === 'primary') {
-            $directory = $config['sqlite_path'] ?? storage_path('cache/hypercachio');
+            $directory = $config['sqlite_path'] ?? storage_path('cache/hypercacheio');
             $this->initSqlite($directory);
         }
     }
@@ -73,7 +73,7 @@ class HypercachioStore implements LockProvider, Store
             @mkdir($directory, 0755, true);
         }
 
-        $path = $directory.'/hypercachio.sqlite';
+        $path = $directory.'/hypercacheio.sqlite';
         $this->sqlite = new \PDO('sqlite:'.$path);
         $this->sqlite->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
         $this->sqlite->exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;');
@@ -107,8 +107,8 @@ class HypercachioStore implements LockProvider, Store
         try {
             Http::timeout($this->timeout)
                 ->withHeaders([
-                    'X-Hypercachio-Token' => $this->apiToken,
-                    'X-Hypercachio-Server-ID' => gethostname(),
+                    'X-Hypercacheio-Token' => $this->apiToken,
+                    'X-Hypercacheio-Server-ID' => gethostname(),
                 ])
                 ->async()
                 ->$method("{$this->primaryUrl}/{$endpoint}", $payload);
@@ -122,8 +122,8 @@ class HypercachioStore implements LockProvider, Store
         try {
             $response = Http::timeout($this->timeout)
                 ->withHeaders([
-                    'X-Hypercachio-Token' => $this->apiToken,
-                    'X-Hypercachio-Server-ID' => gethostname(),
+                    'X-Hypercacheio-Token' => $this->apiToken,
+                    'X-Hypercacheio-Server-ID' => gethostname(),
                 ])
                 ->$method("{$this->primaryUrl}/{$endpoint}", $payload);
 
@@ -319,12 +319,12 @@ class HypercachioStore implements LockProvider, Store
 
     public function lock($name, $seconds = 0, $owner = null)
     {
-        return new HypercachioLock($this, $name, $seconds, $owner);
+        return new HypercacheioLock($this, $name, $seconds, $owner);
     }
 
     public function restoreLock($name, $owner)
     {
-        return new HypercachioLock($this, $name, 0, $owner);
+        return new HypercacheioLock($this, $name, 0, $owner);
     }
 
     public function acquireLock($key, $owner, $seconds)

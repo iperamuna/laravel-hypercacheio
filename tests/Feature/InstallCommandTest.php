@@ -22,26 +22,26 @@ afterEach(function () {
     }
 });
 
-test('it installs hypercachio config, modifies cache.php and updates gitignore', function () {
+test('it installs hypercacheio config, modifies cache.php and updates gitignore', function () {
     // Ensure .gitignore exists for the test
     $gitignorePath = base_path('.gitignore');
     File::put($gitignorePath, "vendor/\nnode_modules/\n");
 
-    $this->artisan('hypercachio:install')
+    $this->artisan('hypercacheio:install')
         ->expectsOutput('Installing Laravel Hyper-Cache-IO...')
-        ->expectsOutput('Added hypercachio store to cache.php.')
-        ->expectsOutput('Added Hypercachio storage directory to .gitignore.')
+        ->expectsOutput('Added hypercacheio store to cache.php.')
+        ->expectsOutput('Added Hypercacheio storage directory to .gitignore.')
         ->expectsOutput('Hyper-Cache-IO installed successfully!')
         ->assertExitCode(0);
 
     // Verify config/cache.php was modified
     $content = File::get(config_path('cache.php'));
-    expect($content)->toContain("'hypercachio' => [");
-    expect($content)->toContain("'driver' => 'hypercachio'");
+    expect($content)->toContain("'hypercacheio' => [");
+    expect($content)->toContain("'driver' => 'hypercacheio'");
 
     // Verify .gitignore was updated
     $gitignoreContent = File::get($gitignorePath);
-    expect($gitignoreContent)->toContain('/storage/cache/hypercachio/');
+    expect($gitignoreContent)->toContain('/storage/cache/hypercacheio/');
 
     // Cleanup
     File::delete($gitignorePath);
@@ -49,15 +49,15 @@ test('it installs hypercachio config, modifies cache.php and updates gitignore',
 
 test('it does not duplicate config if already installed', function () {
     // Run once
-    $this->artisan('hypercachio:install');
+    $this->artisan('hypercacheio:install');
 
     // Run again
-    $this->artisan('hypercachio:install') // Use correct command name
-        ->expectsOutput('Hypercachio store already configured in cache.php.')
+    $this->artisan('hypercacheio:install') // Use correct command name
+        ->expectsOutput('Hypercacheio store already configured in cache.php.')
         ->assertExitCode(0);
 
     // Verify it wasn't duplicated (simple check: count occurrences)
     $content = File::get(config_path('cache.php'));
-    $count = substr_count($content, "'hypercachio' => [");
+    $count = substr_count($content, "'hypercacheio' => [");
     expect($count)->toBe(1);
 });
