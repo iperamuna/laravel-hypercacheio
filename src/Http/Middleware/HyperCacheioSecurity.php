@@ -1,13 +1,13 @@
 <?php
 
-namespace Iperamuna\Hypercachio\Http\Middleware;
+namespace Iperamuna\Hypercacheio\Http\Middleware;
 
 use Closure;
 
 /**
- * Middleware to secure Hypercachio internal API endpoints.
+ * Middleware to secure Hypercacheio internal API endpoints.
  */
-class HyperCachioSecurity
+class HyperCacheioSecurity
 {
     /**
      * Handle an incoming request.
@@ -17,8 +17,8 @@ class HyperCachioSecurity
      */
     public function handle($request, Closure $next)
     {
-        $token = $request->header('X-Hypercachio-Token');
-        if ($token !== config('hypercachio.api_token')) {
+        $token = $request->header('X-Hypercacheio-Token');
+        if ($token !== config('hypercacheio.api_token')) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 

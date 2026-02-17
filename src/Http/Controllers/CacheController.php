@@ -1,6 +1,6 @@
 <?php
 
-namespace Iperamuna\Hypercachio\Http\Controllers;
+namespace Iperamuna\Hypercacheio\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -19,11 +19,11 @@ class CacheController extends Controller
      */
     public function __construct()
     {
-        $directory = config('hypercachio.sqlite_path');
+        $directory = config('hypercacheio.sqlite_path');
         if (! file_exists($directory)) {
             @mkdir($directory, 0755, true);
         }
-        $path = $directory.'/hypercachio.sqlite';
+        $path = $directory.'/hypercacheio.sqlite';
         $this->sqlite = new \PDO('sqlite:'.$path);
         $this->sqlite->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
         $this->sqlite->exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;');
