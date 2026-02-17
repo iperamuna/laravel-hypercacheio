@@ -43,11 +43,12 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | SQLite File Path
+    | SQLite Storage Directory
     |--------------------------------------------------------------------------
-    | Absolute path to the SQLite file used locally for cache and locks.
+    | The directory where the SQLite database ('hypercachio.sqlite') and its
+    | associated files (WAL, SHM) will be stored locally.
     */
-    'sqlite_path' => storage_path('cache/hypercachio.sqlite'),
+    'sqlite_path' => storage_path('cache/hypercachio'),
 
     /*
     |--------------------------------------------------------------------------
@@ -64,6 +65,13 @@ return [
     */
     'api_token' => env('HYPERCACHIO_API_TOKEN', 'changeme'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Async Requests
+    |--------------------------------------------------------------------------
+    | If enabled, write operations in secondary role will be fired
+    | asynchronously to improve performance (fire-and-forget).
+    */
     'async_requests' => env('HYPERCACHIO_ASYNC', true),
 
 ];

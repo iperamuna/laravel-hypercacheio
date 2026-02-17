@@ -22,10 +22,15 @@ afterEach(function () {
     }
 });
 
-test('it installs hypercachio config and modifies cache.php', function () {
+test('it installs hypercachio config, modifies cache.php and updates gitignore', function () {
+    // Ensure .gitignore exists for the test
+    $gitignorePath = base_path('.gitignore');
+    File::put($gitignorePath, "vendor/\nnode_modules/\n");
+
     $this->artisan('hypercachio:install')
         ->expectsOutput('Installing Laravel Hyper-Cache-IO...')
         ->expectsOutput('Added hypercachio store to cache.php.')
+        ->expectsOutput('Added Hypercachio storage directory to .gitignore.')
         ->expectsOutput('Hyper-Cache-IO installed successfully!')
         ->assertExitCode(0);
 
@@ -33,6 +38,13 @@ test('it installs hypercachio config and modifies cache.php', function () {
     $content = File::get(config_path('cache.php'));
     expect($content)->toContain("'hypercachio' => [");
     expect($content)->toContain("'driver' => 'hypercachio'");
+
+    // Verify .gitignore was updated
+    $gitignoreContent = File::get($gitignorePath);
+    expect($gitignoreContent)->toContain('/storage/cache/hypercachio/');
+
+    // Cleanup
+    File::delete($gitignorePath);
 });
 
 test('it does not duplicate config if already installed', function () {

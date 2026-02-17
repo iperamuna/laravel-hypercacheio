@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2026-02-17
+
+### Added
+- **SQLite Directory Storage**: Changed `sqlite_path` to define a directory instead of a file. The actual database is now stored as `hypercachio.sqlite` within this folder, allowing for better organization of associated WAL and SHM files.
+- **Automated .gitignore**: The `hypercachio:install` command now automatically adds the default storage directory to the project's `.gitignore`.
+- **Enhanced Documentation**: Added missing doc blocks in the configuration for better developer experience.
+
 ## [1.0.2] - 2026-02-17
 
 ### Added

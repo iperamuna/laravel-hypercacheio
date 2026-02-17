@@ -62,16 +62,18 @@ class HypercachioStore implements LockProvider, Store
         $this->async = $config['async_requests'] ?? true;
 
         if ($this->role === 'primary') {
-            $path = $config['sqlite_path'] ?? storage_path('cache/hypercachio.sqlite');
-            $this->initSqlite($path);
+            $directory = $config['sqlite_path'] ?? storage_path('cache/hypercachio');
+            $this->initSqlite($directory);
         }
     }
 
-    protected function initSqlite($path)
+    protected function initSqlite($directory)
     {
-        if (! file_exists(dirname($path))) {
-            @mkdir(dirname($path), 0755, true);
+        if (! file_exists($directory)) {
+            @mkdir($directory, 0755, true);
         }
+
+        $path = $directory.'/hypercachio.sqlite';
         $this->sqlite = new \PDO('sqlite:'.$path);
         $this->sqlite->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
         $this->sqlite->exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;');

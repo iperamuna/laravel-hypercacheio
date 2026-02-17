@@ -132,13 +132,14 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | SQLite Database Path
+    | SQLite Storage Directory
     |--------------------------------------------------------------------------
     |
-    | The absolute path to the SQLite cache database file.
+    | The absolute path to the directory where the 'hypercachio.sqlite' database 
+    | and its associated files (WAL, SHM) will be stored.
     |
     */
-    'sqlite_path' => storage_path('cache/hypercachio.sqlite'),
+    'sqlite_path' => storage_path('cache/hypercachio'),
 
 ];
 ```

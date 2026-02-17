@@ -19,10 +19,11 @@ class CacheController extends Controller
      */
     public function __construct()
     {
-        $path = config('hypercachio.sqlite_path');
-        if (! file_exists(dirname($path))) {
-            mkdir(dirname($path), 0755, true);
+        $directory = config('hypercachio.sqlite_path');
+        if (! file_exists($directory)) {
+            @mkdir($directory, 0755, true);
         }
+        $path = $directory.'/hypercachio.sqlite';
         $this->sqlite = new \PDO('sqlite:'.$path);
         $this->sqlite->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
         $this->sqlite->exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;');

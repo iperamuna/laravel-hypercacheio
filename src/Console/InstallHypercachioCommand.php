@@ -39,12 +39,38 @@ class InstallHypercachioCommand extends Command
         // Configure cache.php
         $this->configureCacheDriver();
 
+        // Update .gitignore
+        $this->updateGitignore();
+
         $this->call('config:clear');
 
         $this->info('Hyper-Cache-IO installed successfully!');
         $this->warn('Please ensure your .env file has CACHE_DRIVER=hypercachio set if you want to use it as the default driver.');
+        $this->info('Advice: If you change the "sqlite_path" in config/hypercachio.php, remember to update your .gitignore accordingly.');
 
         return 0;
+    }
+
+    /**
+     * Update the project's .gitignore file.
+     *
+     * @return void
+     */
+    protected function updateGitignore()
+    {
+        $gitignorePath = base_path('.gitignore');
+        $ignoreEntry = '/storage/cache/hypercachio/';
+
+        if (! file_exists($gitignorePath)) {
+            return;
+        }
+
+        $content = file_get_contents($gitignorePath);
+
+        if (! Str::contains($content, $ignoreEntry)) {
+            file_put_contents($gitignorePath, "\n".$ignoreEntry."\n", FILE_APPEND);
+            $this->info('Added Hypercachio storage directory to .gitignore.');
+        }
     }
 
     /**

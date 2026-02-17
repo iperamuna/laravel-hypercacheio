@@ -19,7 +19,7 @@ class TestCase extends BaseTestCase
         $app['config']->set('hypercachio.role', 'primary');
         $app['config']->set('hypercachio.primary_url', 'http://test-server.test/api/hypercachio');
         $app['config']->set('hypercachio.async_requests', false);
-        $app['config']->set('hypercachio.sqlite_path', __DIR__.'/temp/cache.sqlite');
+        $app['config']->set('hypercachio.sqlite_path', __DIR__.'/temp');
         $app['config']->set('cache.stores.hypercachio', [
             'driver' => 'hypercachio',
         ]);
