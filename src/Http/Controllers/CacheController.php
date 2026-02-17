@@ -4,41 +4,18 @@ namespace Iperamuna\Hypercacheio\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Iperamuna\Hypercacheio\Concerns\InteractsWithSqlite;
 
 class CacheController extends Controller
 {
-    /**
-     * The SQLite connection instance.
-     *
-     * @var \PDO
-     */
-    protected $sqlite;
-
+    use InteractsWithSqlite;
     /**
      * Create a new CacheController instance and initialize the SQLite connection.
      */
     public function __construct()
     {
-        $directory = config('hypercacheio.sqlite_path');
-        if (! file_exists($directory)) {
-            @mkdir($directory, 0755, true);
-        }
-        $path = $directory.'/hypercacheio.sqlite';
-        $this->sqlite = new \PDO('sqlite:'.$path);
-        $this->sqlite->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
-        $this->sqlite->exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;');
-        $this->sqlite->exec('
-            CREATE TABLE IF NOT EXISTS cache(
-                key TEXT PRIMARY KEY,
-                value BLOB NOT NULL,
-                expiration INTEGER
-            );
-            CREATE TABLE IF NOT EXISTS cache_locks(
-                key TEXT PRIMARY KEY,
-                owner TEXT NOT NULL,
-                expiration INTEGER
-            );
-        ');
+        $directory = config('cache.stores.hypercacheio.sqlite_path') ?? config('hypercacheio.sqlite_path');
+        $this->initSqlite($directory);
     }
 
     /**
@@ -52,7 +29,7 @@ class CacheController extends Controller
         $stmt = $this->sqlite->prepare('SELECT value, expiration FROM cache WHERE key=:key');
         $stmt->execute([':key' => $key]);
         $row = $stmt->fetch(\PDO::FETCH_ASSOC);
-        if (! $row || ($row['expiration'] && $row['expiration'] < time())) {
+        if (!$row || ($row['expiration'] && $row['expiration'] < time())) {
             return response()->json(null);
         }
 
@@ -103,14 +80,13 @@ class CacheController extends Controller
     public function put(Request $request, $key)
     {
         $value = serialize($request->input('value'));
-        $ttl = $request->input('ttl') ? time() + $request->input('ttl') : null; // Handle null or 0 properly
         $inputTtl = $request->input('ttl');
+
         $expiration = ($inputTtl && $inputTtl > 0) ? time() + $inputTtl : null;
 
         $stmt = $this->sqlite->prepare('
-            INSERT INTO cache(key, value, expiration)
+            REPLACE INTO cache(key, value, expiration)
             VALUES(:key, :value, :exp)
-            ON CONFLICT(key) DO UPDATE SET value=excluded.value, expiration=excluded.exp
         ');
         $stmt->execute([':key' => $key, ':value' => $value, ':exp' => $expiration]);
 
@@ -178,5 +154,20 @@ class CacheController extends Controller
         $stmt->execute([':key' => $key, ':owner' => $owner]);
 
         return response()->json(['released' => $stmt->rowCount() > 0]);
+    }
+
+    /**
+     * Ping the server to check connectivity and role.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function ping()
+    {
+        return response()->json([
+            'message' => 'pong',
+            'role' => config('cache.stores.hypercacheio.role') ?? config('hypercacheio.role'),
+            'hostname' => gethostname(),
+            'time' => time(),
+        ]);
     }
 }

@@ -18,14 +18,15 @@ class HypercacheioServiceProvider extends ServiceProvider
     public function boot()
     {
         $this->publishes([
-            __DIR__.'/../config/hypercacheio.php' => config_path('hypercacheio.php'),
+            __DIR__ . '/../config/hypercacheio.php' => config_path('hypercacheio.php'),
         ], 'hypercacheio-config');
 
-        $this->loadRoutesFrom(__DIR__.'/../routes/hypercacheio.php');
+        $this->loadRoutesFrom(__DIR__ . '/../routes/hypercacheio.php');
 
         if ($this->app->runningInConsole()) {
             $this->commands([
                 Console\InstallHypercacheioCommand::class,
+                Console\ConnectivityCheckCommand::class,
             ]);
         }
 
@@ -44,6 +45,6 @@ class HypercacheioServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        $this->mergeConfigFrom(__DIR__.'/../config/hypercacheio.php', 'hypercacheio');
+        $this->mergeConfigFrom(__DIR__ . '/../config/hypercacheio.php', 'hypercacheio');
     }
 }

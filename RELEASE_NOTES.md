@@ -1,3 +1,30 @@
+# Release Notes - v1.3.0
+
+**Laravel Hyper-Cache-IO**
+
+This major update introduces a new Connectivity Check command, improved async processing architecture, and significant code optimizations.
+
+## ✨ New Features
+
+*   **Connectivity Check Command**: Run `php artisan hypercacheio:connectivity-check` to instantly verify communication between your Primary and Secondary nodes. It tests all endpoints (Ping, Add, Get, Put, Delete, Lock) and provides a detailed report.
+*   **Fire-and-Forget Architecture**: Async requests now use a robust Promise tracking system with graceful shutdown. This ensures that write operations from Secondary nodes return immediately to the user while guaranteeing completion in the background, eliminating previous reliability issues with fire-and-forget requests.
+
+## 🛠 Improvements
+
+*   **Refactoring**: Core logic has been optimized by extracting shared SQLite operations into the `InteractsWithSqlite` trait, reducing code duplication and improving maintainability.
+*   **Configuration Alignment**: The `CacheController` now respects the specific store configuration defined in `config/cache.php`, ensuring consistency with the `HypercacheioStore` implementation.
+*   **Testing**: The entire test suite has been converted to **Pest PHP** for cleaner, more expressive tests.
+
+## 📦 Upgrade
+
+```bash
+composer update iperamuna/laravel-hypercacheio
+```
+
+This update is fully backward compatible. For best results, ensure your configuration files are up to date.
+
+---
+
 # Release Notes - v1.2.1
 
 **Laravel Hyper-Cache-IO**

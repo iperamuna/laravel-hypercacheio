@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2026-02-17
+
+### Added
+- **Connectivity Check**: New `php artisan hypercacheio:connectivity-check` command to verify connection and operations between Primary and Secondary servers.
+- **Fire-and-Forget Architecture**: Improved async request handling using Promise tracking and graceful shutdown to ensure background writes complete reliably without blocking the response.
+
+### Changed
+- **Refactoring**: Extracted SQLite logic into `InteractsWithSqlite` trait to reduce duplication between Store and Controller.
+- **Configuration Alignment**: Updated `CacheController` to respect store-specific configuration (`config/cache.php`) for `sqlite_path`, aligning it with the Store implementation.
+- **Testing**: Converted test suite to Pest PHP for cleaner and more expressive tests.
+- **Cleanup**: Removed redundant logs and optimized code structure.
+
 ## [1.2.1] - 2026-02-17
 
 ### Added

@@ -146,6 +146,19 @@ return [
 
 ---
 
+---
+## 🔌 Connectivity Check
+
+To verify that your server can communicate with the configured Primary/Secondary nodes, run the built-in connectivity check command:
+
+```bash
+php artisan hypercacheio:connectivity-check
+```
+
+This command performs a full suite of tests (Ping, Add, Get, Put, Delete, Lock) against the configured endpoints and reports the status of each operation.
+
+---
+
 ## 🛠️ Usage
 
 Use the standard **Laravel Cache Facade**. No new syntax to learn!
