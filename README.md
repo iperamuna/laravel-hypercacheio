@@ -133,27 +133,43 @@ HYPERCACHEIO_SERVER_TYPE=go
 ```
 
 ### 2. Compile & Start
-The package includes a management CLI for the Go daemon:
+The package includes a full management CLI for the Go daemon:
 
 ```bash
-# 🛠️ Compile the binary for your system (detects macOS/Linux)
+# 🛠️ Compile the binary for your system (detects macOS/Linux, all architectures)
 php artisan hypercacheio:go-server compile
 
 # 🚀 Start the server as a background process
 php artisan hypercacheio:go-server start
 
-# 📊 Check status
+# 📊 Check daemon status (PID-based)
 php artisan hypercacheio:go-server status
+
+# 🔄 Restart the daemon
+php artisan hypercacheio:go-server restart
+
+# 🛑 Stop the daemon
+php artisan hypercacheio:go-server stop
 ```
 
 ### 3. Run as a System Service
-To ensure the Go server stays running after a crash or system reboot, generate a service configuration:
+
+Generate service configuration files for your OS, then install and manage them via Artisan:
 
 ```bash
+# Step 1: Generate the service file (systemd for Linux, launchd for macOS)
 php artisan hypercacheio:go-server make-service
-```
 
-Follow the on-screen instructions to copy the generated file to your system's service directory (`systemd` for Linux or `launchd` for macOS).
+# Step 2: Install the service (one-time manual step per OS):
+# Linux:  sudo cp hypercacheio-server.service /etc/systemd/system/
+# macOS:  cp iperamuna.hypercacheio.server.plist ~/Library/LaunchAgents/
+
+# Step 3: Manage via Artisan
+php artisan hypercacheio:go-server service:start   # Load and start the service
+php artisan hypercacheio:go-server service:stop    # Stop the service
+php artisan hypercacheio:go-server service:status  # View service status
+php artisan hypercacheio:go-server service:remove  # Disable and remove the service
+```
 
 ---
 ## 🔌 Connectivity Check
@@ -164,7 +180,11 @@ To verify that your server can communicate with the configured Primary/Secondary
 php artisan hypercacheio:connectivity-check
 ```
 
-This command performs a full suite of tests (Ping, Add, Get, Put, Delete, Lock) against the configured endpoints and reports the status of each operation.
+This command:
+- **Identifies** server type (LARAVEL or GO) with host and port
+- **Pings** the local node first to ensure the cache server is listening
+- **Tests** Ping, Add, Get, Put, Delete, Lock against all configured endpoints
+- **Reports** OS-specific firewall advice (ufw, firewalld, socketfilterfw) when a connection fails
 
 ---
 

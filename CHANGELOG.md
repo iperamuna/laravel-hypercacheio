@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.2] - 2026-02-24
+
+### Added
+- **System Service Management**: New `hypercacheio:go-server` actions for system service lifecycle management:
+  - `service:start` — Loads and starts the service (launchd on macOS, systemd on Linux).
+  - `service:stop` — Stops the running service.
+  - `service:status` — Shows real-time service status via `launchctl list` or `systemctl status`.
+  - `service:remove` — Disables, stops, and removes the service files. Prompts for confirmation.
+
+### Improved
+- **Connectivity Check**: The check messages now display server type (LARAVEL/GO), host, and port for both primary and secondary servers. Server info persists after the spinner completes.
+
 ## [1.4.1] - 2026-02-24
 
 ### Changed
