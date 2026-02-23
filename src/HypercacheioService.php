@@ -26,7 +26,7 @@ class HypercacheioService
         $stmt->execute([':key' => $key]);
         $row = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-        if (!$row || ($row['expiration'] && $row['expiration'] < time())) {
+        if (! $row || ($row['expiration'] && $row['expiration'] < time())) {
             return null;
         }
 

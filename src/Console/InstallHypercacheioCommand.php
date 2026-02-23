@@ -61,14 +61,14 @@ class InstallHypercacheioCommand extends Command
         $gitignorePath = base_path('.gitignore');
         $ignoreEntry = '/storage/hypercacheio/';
 
-        if (!file_exists($gitignorePath)) {
+        if (! file_exists($gitignorePath)) {
             return;
         }
 
         $content = file_get_contents($gitignorePath);
 
-        if (!Str::contains($content, $ignoreEntry)) {
-            file_put_contents($gitignorePath, "\n" . $ignoreEntry . "\n", FILE_APPEND);
+        if (! Str::contains($content, $ignoreEntry)) {
+            file_put_contents($gitignorePath, "\n".$ignoreEntry."\n", FILE_APPEND);
             $this->info('Added Hypercacheio storage directory to .gitignore.');
         }
     }
@@ -82,8 +82,8 @@ class InstallHypercacheioCommand extends Command
     {
         $configPath = config_path('cache.php');
 
-        if (!file_exists($configPath)) {
-            $this->error('Config file not found: ' . $configPath);
+        if (! file_exists($configPath)) {
+            $this->error('Config file not found: '.$configPath);
 
             return;
         }
@@ -105,7 +105,7 @@ class InstallHypercacheioCommand extends Command
 
         // Let's try to match the start of the stores array
         if (preg_match("/('stores'\s*=>\s*\[)/", $configContent, $matches)) {
-            $configContent = str_replace($matches[0], $matches[0] . $storeConfig, $configContent);
+            $configContent = str_replace($matches[0], $matches[0].$storeConfig, $configContent);
             file_put_contents($configPath, $configContent);
             $this->info('Added hypercacheio store to cache.php.');
         } else {

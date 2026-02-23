@@ -9,7 +9,7 @@ afterEach(function () {
     $path = config('hypercacheio.sqlite_path') ?? storage_path('hypercacheio');
     if ($path && file_exists($path)) {
         if (is_dir($path)) {
-            $file = $path . '/hypercacheio.sqlite';
+            $file = $path.'/hypercacheio.sqlite';
             if (file_exists($file)) {
                 @unlink($file);
             }
@@ -26,7 +26,7 @@ it('performs primary role operations correctly', function () {
     // Ensure async is false for immediate execution in tests
     config(['hypercacheio.async_requests' => false]);
     // Use a temp path for key operations
-    $tempDir = __DIR__ . '/temp_primary';
+    $tempDir = __DIR__.'/temp_primary';
     config(['hypercacheio.sqlite_path' => $tempDir]);
 
     // Clear cache manager stores
@@ -54,14 +54,14 @@ it('performs primary role operations correctly', function () {
     expect($addedAgain)->toBeFalse();
 
     // Cleanup temp dir
-    if (file_exists($tempDir . '/hypercacheio.sqlite')) {
-        @unlink($tempDir . '/hypercacheio.sqlite');
+    if (file_exists($tempDir.'/hypercacheio.sqlite')) {
+        @unlink($tempDir.'/hypercacheio.sqlite');
     }
-    if (file_exists($tempDir . '/hypercacheio.sqlite-wal')) {
-        @unlink($tempDir . '/hypercacheio.sqlite-wal');
+    if (file_exists($tempDir.'/hypercacheio.sqlite-wal')) {
+        @unlink($tempDir.'/hypercacheio.sqlite-wal');
     }
-    if (file_exists($tempDir . '/hypercacheio.sqlite-shm')) {
-        @unlink($tempDir . '/hypercacheio.sqlite-shm');
+    if (file_exists($tempDir.'/hypercacheio.sqlite-shm')) {
+        @unlink($tempDir.'/hypercacheio.sqlite-shm');
     }
     if (is_dir($tempDir)) {
         rmdir($tempDir);
