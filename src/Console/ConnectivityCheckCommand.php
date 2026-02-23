@@ -134,9 +134,15 @@ class ConnectivityCheckCommand extends Command
                 continue;
             }
 
+            $parsed = parse_url($url);
+            $host = $parsed['host'] ?? $url;
+            $port = isset($parsed['port']) ? ':'.$parsed['port'] : '';
+            $scheme = $parsed['scheme'] ?? 'http';
+            $serverTypeLbl = strtoupper(config('hypercacheio.server_type', 'laravel'));
+
             $checkResults = spin(
                 fn () => $this->runFullCheck($label, $url, $apiToken, $timeout),
-                "Checking {$label}..."
+                "Checking {$label} [{$serverTypeLbl}] at {$scheme}://{$host}{$port}..."
             );
 
             $results = array_merge($results, $checkResults);
@@ -155,11 +161,17 @@ class ConnectivityCheckCommand extends Command
             return [];
         }
 
-        note('Checking connectivity to primary server...');
+        $parsed = parse_url($primaryUrl);
+        $host = $parsed['host'] ?? $primaryUrl;
+        $port = isset($parsed['port']) ? ':'.$parsed['port'] : '';
+        $scheme = $parsed['scheme'] ?? 'http';
+        $serverTypeLbl = strtoupper(config('hypercacheio.server_type', 'laravel'));
+
+        note("Checking connectivity to primary server [{$serverTypeLbl}] at {$scheme}://{$host}{$port}...");
 
         return spin(
             fn () => $this->runFullCheck('Primary', $primaryUrl, $apiToken, $timeout),
-            'Checking Primary...'
+            "Checking Primary [{$serverTypeLbl}] at {$scheme}://{$host}{$port}..."
         );
     }
 
