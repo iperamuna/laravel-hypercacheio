@@ -60,26 +60,23 @@ class ConnectivityCheckCommand extends Command
             $localResult = null;
             $localUrl = $localUrls[0];
 
-            $localResult = spin(function () use ($localUrls, $apiToken, $timeout, &$localUrl) {
+            $localTimeout = max(3, $timeout); // Give local server at least 3s to boot/respond
+            $localResult = spin(function () use ($localUrls, $apiToken, $localTimeout, &$localUrl) {
                 foreach ($localUrls as $url) {
-                    $result = $this->performRequest('Local Server', $url, 'GET', 'ping', [], $apiToken, $timeout);
+                    $result = $this->performRequest('Local Server', $url, 'GET', 'ping', [], $apiToken, $localTimeout);
                     if ($result[3] === '✅ OK') {
                         $localUrl = $url;
 
                         return $result;
                     }
-                    // If connection refused (not timeout), try next URL immediately
-                    if (str_contains($result[5], 'error 7') || str_contains($result[5], 'Connection refused')) {
-                        continue;
-                    }
-                    // Timeout or other fatal error — no point trying the same port on another IP
+
+                    // Whether it's connection refused (7) or timeout (28), try the next URL before giving up.
+                    // This is robust against loopback proxy issues or unroutable interfaces.
                     $localUrl = $url;
-
-                    return $result;
                 }
-                $localUrl = end($localUrls);
 
-                return $this->performRequest('Local Server', $localUrl, 'GET', 'ping', [], $apiToken, $timeout);
+                // Return the last failure
+                return $result ?? $this->performRequest('Local Server', $localUrl, 'GET', 'ping', [], $apiToken, $localTimeout);
             }, 'Checking local '.strtoupper($serverType).' server...');
         }
 
