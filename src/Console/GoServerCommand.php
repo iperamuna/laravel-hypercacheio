@@ -12,7 +12,7 @@ class GoServerCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'hypercacheio:go-server {action : start|stop|restart|status|compile|make-service}';
+    protected $signature = 'hypercacheio:go-server {action : start|stop|restart|status|compile|make-service|service:start|service:stop|service:remove|service:status}';
 
     /**
      * The console command description.
@@ -47,6 +47,18 @@ class GoServerCommand extends Command
                 break;
             case 'make-service':
                 $this->makeService();
+                break;
+            case 'service:start':
+                $this->serviceStart();
+                break;
+            case 'service:stop':
+                $this->serviceStop();
+                break;
+            case 'service:remove':
+                $this->serviceRemove();
+                break;
+            case 'service:status':
+                $this->serviceStatus();
                 break;
             default:
                 $this->error('Unknown action: '.$action);
@@ -351,5 +363,111 @@ class GoServerCommand extends Command
     protected function isProcessRunning($pid)
     {
         return (bool) exec("ps -p $pid | grep $pid");
+    }
+
+    protected function getServiceNames(): array
+    {
+        return [
+            'systemd' => 'hypercacheio-server',
+            'launchd' => 'iperamuna.hypercacheio.server',
+        ];
+    }
+
+    protected function serviceStart(): void
+    {
+        $os = strtolower(PHP_OS_FAMILY);
+
+        if ($os === 'darwin') {
+            $plist = getenv('HOME').'/Library/LaunchAgents/iperamuna.hypercacheio.server.plist';
+            $svcName = $this->getServiceNames()['launchd'];
+
+            if (! file_exists($plist)) {
+                $this->error("Launchd plist not found at: $plist");
+                $this->line("Run 'php artisan hypercacheio:go-server make-service' first, then copy it there.");
+
+                return;
+            }
+
+            passthru("launchctl load -w $plist", $code);
+            $code === 0
+                ? $this->info("Service '{$svcName}' started via launchd.")
+                : $this->error("Failed to start service. Try: launchctl load -w $plist");
+        } else {
+            $svcName = $this->getServiceNames()['systemd'];
+            passthru("sudo systemctl start $svcName", $code);
+            $code === 0
+                ? $this->info("Service '{$svcName}' started via systemd.")
+                : $this->error("Failed to start service. Try: sudo systemctl start $svcName");
+        }
+    }
+
+    protected function serviceStop(): void
+    {
+        $os = strtolower(PHP_OS_FAMILY);
+
+        if ($os === 'darwin') {
+            $plist = getenv('HOME').'/Library/LaunchAgents/iperamuna.hypercacheio.server.plist';
+            $svcName = $this->getServiceNames()['launchd'];
+            passthru("launchctl unload -w $plist", $code);
+            $code === 0
+                ? $this->info("Service '{$svcName}' stopped via launchd.")
+                : $this->error("Failed to stop service. Try: launchctl unload -w $plist");
+        } else {
+            $svcName = $this->getServiceNames()['systemd'];
+            passthru("sudo systemctl stop $svcName", $code);
+            $code === 0
+                ? $this->info("Service '{$svcName}' stopped via systemd.")
+                : $this->error("Failed to stop service. Try: sudo systemctl stop $svcName");
+        }
+    }
+
+    protected function serviceRemove(): void
+    {
+        $os = strtolower(PHP_OS_FAMILY);
+
+        if (! $this->confirm('This will disable and remove the system service. Continue?', false)) {
+            $this->info('Aborted.');
+
+            return;
+        }
+
+        if ($os === 'darwin') {
+            $plist = getenv('HOME').'/Library/LaunchAgents/iperamuna.hypercacheio.server.plist';
+            $svcName = $this->getServiceNames()['launchd'];
+
+            if (file_exists($plist)) {
+                passthru("launchctl unload -w $plist");
+                unlink($plist);
+                $this->info("Service '{$svcName}' removed from launchd and plist deleted.");
+            } else {
+                $this->warn("Plist not found at $plist. Nothing to remove.");
+            }
+        } else {
+            $svcName = $this->getServiceNames()['systemd'];
+            $svcFile = "/etc/systemd/system/{$svcName}.service";
+            passthru("sudo systemctl disable --now $svcName");
+
+            if (file_exists($svcFile)) {
+                passthru("sudo rm $svcFile && sudo systemctl daemon-reload");
+                $this->info("Service '{$svcName}' disabled, removed, and daemon reloaded.");
+            } else {
+                $this->warn("Service file not found at $svcFile. Service may not have been installed.");
+            }
+        }
+    }
+
+    protected function serviceStatus(): void
+    {
+        $os = strtolower(PHP_OS_FAMILY);
+
+        if ($os === 'darwin') {
+            $svcName = $this->getServiceNames()['launchd'];
+            $this->line("<info>launchd status for '{$svcName}':</info>");
+            passthru("launchctl list | grep $svcName || echo 'Service not loaded.'");
+        } else {
+            $svcName = $this->getServiceNames()['systemd'];
+            $this->line("<info>systemd status for '{$svcName}':</info>");
+            passthru("sudo systemctl status $svcName --no-pager");
+        }
     }
 }
