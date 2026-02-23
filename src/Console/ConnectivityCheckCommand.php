@@ -145,6 +145,8 @@ class ConnectivityCheckCommand extends Command
                 "Checking {$label} [{$serverTypeLbl}] at {$scheme}://{$host}{$port}..."
             );
 
+            note("✔ Checked {$label} [{$serverTypeLbl}] → {$scheme}://{$host}{$port}");
+
             $results = array_merge($results, $checkResults);
         }
 
@@ -169,10 +171,14 @@ class ConnectivityCheckCommand extends Command
 
         note("Checking connectivity to primary server [{$serverTypeLbl}] at {$scheme}://{$host}{$port}...");
 
-        return spin(
+        $results = spin(
             fn () => $this->runFullCheck('Primary', $primaryUrl, $apiToken, $timeout),
             "Checking Primary [{$serverTypeLbl}] at {$scheme}://{$host}{$port}..."
         );
+
+        note("✔ Checked Primary [{$serverTypeLbl}] → {$scheme}://{$host}{$port}");
+
+        return $results;
     }
 
     protected function runFullCheck(string $label, string $baseUrl, string $apiToken, int $timeout): array
