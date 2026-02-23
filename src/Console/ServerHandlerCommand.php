@@ -4,7 +4,6 @@ namespace Iperamuna\Hypercacheio\Console;
 
 use Illuminate\Console\Command;
 use Iperamuna\Hypercacheio\HypercacheioService;
-use Iperamuna\Hypercacheio\Concerns\InteractsWithSqlite;
 
 class ServerHandlerCommand extends Command
 {
@@ -81,6 +80,7 @@ class ServerHandlerCommand extends Command
                 break;
             default:
                 $this->error(json_encode(['error' => 'Unknown action']));
+
                 return 1;
         }
 

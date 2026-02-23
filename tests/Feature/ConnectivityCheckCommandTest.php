@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Http;
+
 use function Pest\Laravel\artisan;
 
 it('runs connectivity check successfully for laravel server type', function () {

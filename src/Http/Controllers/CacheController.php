@@ -5,7 +5,6 @@ namespace Iperamuna\Hypercacheio\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Iperamuna\Hypercacheio\HypercacheioService;
-use Iperamuna\Hypercacheio\Concerns\InteractsWithSqlite;
 
 class CacheController extends Controller
 {

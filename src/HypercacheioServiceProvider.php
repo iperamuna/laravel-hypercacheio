@@ -18,11 +18,11 @@ class HypercacheioServiceProvider extends ServiceProvider
     public function boot()
     {
         $this->publishes([
-            __DIR__ . '/../config/hypercacheio.php' => config_path('hypercacheio.php'),
+            __DIR__.'/../config/hypercacheio.php' => config_path('hypercacheio.php'),
         ], 'hypercacheio-config');
 
         if (config('hypercacheio.server_type', 'laravel') === 'laravel') {
-            $this->loadRoutesFrom(__DIR__ . '/../routes/hypercacheio.php');
+            $this->loadRoutesFrom(__DIR__.'/../routes/hypercacheio.php');
         }
 
         if ($this->app->runningInConsole()) {
@@ -49,10 +49,10 @@ class HypercacheioServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        $this->mergeConfigFrom(__DIR__ . '/../config/hypercacheio.php', 'hypercacheio');
+        $this->mergeConfigFrom(__DIR__.'/../config/hypercacheio.php', 'hypercacheio');
 
         $this->app->singleton(HypercacheioService::class, function ($app) {
-            return new HypercacheioService();
+            return new HypercacheioService;
         });
     }
 }

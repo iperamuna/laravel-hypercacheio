@@ -1,6 +1,7 @@
 <?php
 
 use Iperamuna\Hypercacheio\HypercacheioService;
+
 use function Pest\Laravel\artisan;
 
 it('handles get action via server-handler', function () {
@@ -23,7 +24,7 @@ it('handles put action via server-handler', function () {
     artisan('hypercacheio:server-handler', [
         'action' => 'put',
         '--key' => 'test-key',
-        '--payload' => $payload
+        '--payload' => $payload,
     ])->assertExitCode(0);
 });
 
