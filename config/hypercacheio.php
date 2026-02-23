@@ -170,7 +170,21 @@ return [
     |
     */
     'go_server' => [
+        /*
+         * The external/advertised host IP — used by secondary servers to connect here
+         * and shown in status/connectivity-check output.
+         * Env: HYPERCACHEIO_GO_HOST
+         */
         'host' => env('HYPERCACHEIO_GO_HOST', '127.0.0.1'),
+
+        /*
+         * The IP the Go daemon actually binds/listens on.
+         * Use 0.0.0.0 to listen on all interfaces (recommended for servers with a
+         * dedicated LAN IP), so the local health-check via 127.0.0.1 works.
+         * Env: HYPERCACHEIO_GO_LISTEN_HOST
+         */
+        'listen_host' => env('HYPERCACHEIO_GO_LISTEN_HOST', '0.0.0.0'),
+
         'port' => env('HYPERCACHEIO_GO_PORT', '8080'),
         'ssl' => [
             'enabled' => env('HYPERCACHEIO_GO_SSL_ENABLED', false),

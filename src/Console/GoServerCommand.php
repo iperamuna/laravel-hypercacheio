@@ -184,9 +184,11 @@ class GoServerCommand extends Command
 
         $this->info('Starting Go server using binary: '.basename($binPath));
 
+        $listenHost = $config['listen_host'] ?? '0.0.0.0';
+
         $args = [
             "--port={$config['port']}",
-            "--host={$config['host']}",
+            "--host={$listenHost}",
             '--token='.config('hypercacheio.api_token'),
             '--artisan="'.base_path('artisan').'"',
         ];
@@ -337,9 +339,11 @@ class GoServerCommand extends Command
             return;
         }
 
+        $listenHost = $config['listen_host'] ?? '0.0.0.0';
+
         $argsList = [
             "--port={$config['port']}",
-            "--host={$config['host']}",
+            "--host={$listenHost}",
             '--token='.config('hypercacheio.api_token'),
             '--artisan="'.base_path('artisan').'"',
         ];
