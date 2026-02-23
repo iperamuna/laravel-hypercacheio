@@ -52,8 +52,31 @@ class ConnectivityCheckCommand extends Command
         }
 
         // 1. Check Local Server Status
-        $localUrl = $this->getLocalUrl($serverType);
-        $localResult = spin(function () use ($localUrl, $apiToken, $timeout) {
+        // Try 127.0.0.1 first (works when bound to 0.0.0.0), fall back to configured host
+        // (works when bound to a specific LAN/external IP).
+        $localUrls = $this->getLocalUrls($serverType);
+        $localResult = null;
+        $localUrl = $localUrls[0];
+
+        $localResult = spin(function () use ($localUrls, $apiToken, $timeout, &$localUrl) {
+            foreach ($localUrls as $url) {
+                $result = $this->performRequest('Local Server', $url, 'GET', 'ping', [], $apiToken, $timeout);
+                if ($result[3] === '✅ OK') {
+                    $localUrl = $url;
+
+                    return $result;
+                }
+                // If connection refused (not timeout), try next URL immediately
+                if (str_contains($result[5], 'error 7') || str_contains($result[5], 'Connection refused')) {
+                    continue;
+                }
+                // Timeout or other fatal error — no point trying the same port on another IP
+                $localUrl = $url;
+
+                return $result;
+            }
+            $localUrl = end($localUrls);
+
             return $this->performRequest('Local Server', $localUrl, 'GET', 'ping', [], $apiToken, $timeout);
         }, 'Checking local '.strtoupper($serverType).' server...');
 
@@ -269,19 +292,25 @@ class ConnectivityCheckCommand extends Command
         }
     }
 
-    protected function getLocalUrl(string $serverType): string
+    protected function getLocalUrls(string $serverType): array
     {
         if ($serverType === 'laravel') {
-            return url(config('hypercacheio.api_url'));
+            return [url(config('hypercacheio.api_url'))];
         }
 
         $go = config('hypercacheio.go_server');
         $scheme = $go['ssl']['enabled'] ? 'https' : 'http';
+        $port = $go['port'];
+        $host = $go['host'];
 
-        // Always connect via 127.0.0.1 for the local health check.
-        // Using the server's own external/LAN IP (e.g. 10.x.x.x) from the same host
-        // can cause a cURL timeout because traffic is not looped back correctly.
-        return "{$scheme}://127.0.0.1:{$go['port']}/api/hypercacheio";
+        $urls = ["{$scheme}://127.0.0.1:{$port}/api/hypercacheio"];
+
+        // Add configured host as fallback only if it differs from loopback
+        if (! in_array($host, ['127.0.0.1', 'localhost', '::1'])) {
+            $urls[] = "{$scheme}://{$host}:{$port}/api/hypercacheio";
+        }
+
+        return $urls;
     }
 
     protected function showFirewallAdvice(?string $targetUrl = null): void
