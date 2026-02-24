@@ -199,6 +199,7 @@ class GoServerCommand extends Command
             '--sqlite-path="' . $sqlitePath . '"',
             '--prefix="' . $prefix . '"',
             '--direct-sqlite=' . $directSqlite,
+            '--ha-mode=' . ($config['ha_mode'] ? 'true' : 'false'),
         ];
 
         if ($config['ssl']['enabled']) {
@@ -367,6 +368,7 @@ class GoServerCommand extends Command
             '--sqlite-path="' . $sqlitePath . '"',
             '--prefix="' . $prefix . '"',
             '--direct-sqlite=' . $directSqlite,
+            '--ha-mode=' . ($config['ha_mode'] ? 'true' : 'false'),
         ];
 
         if ($config['ssl']['enabled'] ?? false) {

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.4] - 2026-02-24
+
+### Added
+- **Full Configuration Injection**: The `hypercacheio:go-server start` and `make-service` commands now pass *every* relevant configuration value (including SSL settings, HA mode toggles, and replication ports) as command-line arguments. This makes the Go binary completely dynamic and environment-independent.
+- **HA-Aware Binary**: Added `--ha-mode` flag to the Go server to explicitly toggle replication listeners and peer synchronization logic.
+
 ## [1.6.3] - 2026-02-24
 
 ### Added

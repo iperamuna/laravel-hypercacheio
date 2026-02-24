@@ -41,6 +41,7 @@ var (
 	sqlitePath   string
 	cachePrefix  string
 	directSqlite bool
+	haMode       bool
 	peerAddrs    string
 	replPort     int
 
@@ -78,6 +79,7 @@ func main() {
 	flag.StringVar(&sqlitePath, "sqlite-path", "", "Path to SQLite database (optional persistence)")
 	flag.StringVar(&cachePrefix, "prefix", "", "Cache prefix")
 	flag.BoolVar(&directSqlite, "direct-sqlite", true, "Use internal caching logic")
+	flag.BoolVar(&haMode, "ha-mode", true, "Enable HA mode")
 	flag.StringVar(&peerAddrs, "peers", "", "Comma-separated list of peer addresses (host:port) for TCP replication")
 	flag.IntVar(&replPort, "repl-port", 7400, "Port to listen for incoming replication")
 	flag.Parse()
@@ -94,6 +96,9 @@ func main() {
 	}
 	if peerAddrs == "" {
 		peerAddrs = os.Getenv("HYPERCACHEIO_PEER_ADDRS")
+	}
+	if os.Getenv("HYPERCACHEIO_HA_ENABLED") != "" {
+		haMode = os.Getenv("HYPERCACHEIO_HA_ENABLED") == "true"
 	}
 	if port == 8080 && os.Getenv("HYPERCACHEIO_GO_PORT") != "" {
 		fmt.Sscanf(os.Getenv("HYPERCACHEIO_GO_PORT"), "%d", &port)
@@ -121,15 +126,16 @@ func main() {
 		loadFromSqlite()
 	}
 
-	// Start replication listener
-	go startReplicationListener()
+	// Start replication listener and connect to peers if HA mode is enabled
+	if haMode {
+		go startReplicationListener()
 
-	// Connect to peers
-	if peerAddrs != "" {
-		for _, addr := range strings.Split(peerAddrs, ",") {
-			addr = strings.TrimSpace(addr)
-			if addr != "" {
-				go maintainPeerConnection(addr)
+		if peerAddrs != "" {
+			for _, addr := range strings.Split(peerAddrs, ",") {
+				addr = strings.TrimSpace(addr)
+				if addr != "" {
+					go maintainPeerConnection(addr)
+				}
 			}
 		}
 	}
@@ -675,14 +681,19 @@ func handlePing(w http.ResponseWriter, r *http.Request) {
 	}
 	peersMutex.Unlock()
 
+	role := "go-server-standalone"
+	if haMode {
+		role = "go-server-ha"
+	}
+
 	writeJSON(w, map[string]interface{}{
 		"message":     "pong",
-		"role":        "go-server-ha",
+		"role":        role,
 		"hostname":    hostName,
 		"time":        time.Now().Unix(),
 		"peers":       peerList,
 		"items_count": len(cache),
-		"ha_mode":     len(peerList) > 0 || peerAddrs != "",
+		"ha_mode":     haMode,
 	})
 }
 

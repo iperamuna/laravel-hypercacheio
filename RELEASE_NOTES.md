@@ -1,3 +1,17 @@
+# Release Notes - v1.6.4
+
+**Laravel Hyper-Cache-IO**
+
+This release completes the decoupling of the Go server binary from static configuration, making it perfectly suited for CI/CD pipelines where binaries are built once and deployed to many environments.
+
+## 🚀 Full Configuration Injection
+The Go binary is now 100% dynamic. Every configuration option defined in your Laravel `hypercacheio.php` file is explicitly passed to the binary at runtime via command-line flags.
+
+- **Dynamic HA Toggling**: Use the new `--ha-mode` flag to enable or disable the replication engine on the fly.
+- **Environment Agnostic**: Since all values (SSL paths, ports, tokens, prefixes) are passed during the `start` or `make-service` commands, you no longer need to worry about re-compiling the binary when moving between staging and production.
+
+---
+
 # Release Notes - v1.6.3
 
 **Laravel Hyper-Cache-IO**
