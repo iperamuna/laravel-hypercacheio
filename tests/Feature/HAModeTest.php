@@ -2,7 +2,6 @@
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
-use Iperamuna\Hypercacheio\HypercacheioStore;
 
 it('routes requests to local Go server in HA mode regardless of logical role', function () {
     // Enable HA mode and set server type to go

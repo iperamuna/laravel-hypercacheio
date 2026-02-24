@@ -19,7 +19,7 @@ class TestCase extends BaseTestCase
         $app['config']->set('hypercacheio.role', 'primary');
         $app['config']->set('hypercacheio.primary_url', 'http://test-server.test/api/hypercacheio');
         $app['config']->set('hypercacheio.async_requests', false);
-        $app['config']->set('hypercacheio.sqlite_path', __DIR__ . '/temp');
+        $app['config']->set('hypercacheio.sqlite_path', __DIR__.'/temp');
         $app['config']->set('hypercacheio.ha_mode', false);
         $app['config']->set('hypercacheio.go_server.ha_mode', false);
         $app['config']->set('cache.stores.hypercacheio', [
@@ -33,8 +33,8 @@ class TestCase extends BaseTestCase
         parent::setUp();
         $this->app['cache']->forgetDriver('hypercacheio');
 
-        if (!file_exists(__DIR__ . '/temp')) {
-            @mkdir(__DIR__ . '/temp', 0755, true);
+        if (! file_exists(__DIR__.'/temp')) {
+            @mkdir(__DIR__.'/temp', 0755, true);
         }
     }
 }

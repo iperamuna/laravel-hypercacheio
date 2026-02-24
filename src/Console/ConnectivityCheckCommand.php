@@ -43,12 +43,12 @@ class ConnectivityCheckCommand extends Command
 
         info('🔍 Hypercacheio Connectivity & Endpoint Check');
         note("Current server role: {$role}");
-        note('Server Type: ' . strtoupper($serverType));
-        note('Hostname: ' . gethostname());
+        note('Server Type: '.strtoupper($serverType));
+        note('Hostname: '.gethostname());
 
         if ($serverType === 'go') {
             $goConfig = config('hypercacheio.go_server');
-            note("Go Server: {$goConfig['host']}:{$goConfig['port']} " . ($goConfig['ssl']['enabled'] ? '(SSL)' : '(Non-SSL)'));
+            note("Go Server: {$goConfig['host']}:{$goConfig['port']} ".($goConfig['ssl']['enabled'] ? '(SSL)' : '(Non-SSL)'));
         }
 
         // 1. Check Local Server Status
@@ -77,12 +77,12 @@ class ConnectivityCheckCommand extends Command
 
                 // Return the last failure
                 return $result ?? $this->performRequest('Local Server', $localUrl, 'GET', 'ping', [], $apiToken, $localTimeout);
-            }, 'Checking local ' . strtoupper($serverType) . ' server...');
+            }, 'Checking local '.strtoupper($serverType).' server...');
         }
 
         if ($localResult[3] !== '✅ OK' && $localResult[3] !== '✅ OK (Skipped)') {
-            error('❌ Local ' . strtoupper($serverType) . " server is not responding at: $localUrl");
-            note('Reason: ' . $localResult[5]);
+            error('❌ Local '.strtoupper($serverType)." server is not responding at: $localUrl");
+            note('Reason: '.$localResult[5]);
 
             if ($serverType === 'go') {
                 $this->showFirewallAdvice($localUrl);
@@ -114,7 +114,7 @@ class ConnectivityCheckCommand extends Command
         );
 
         // Summary
-        $passed = collect($results)->filter(fn($row) => $row[3] === '✅ OK')->count();
+        $passed = collect($results)->filter(fn ($row) => $row[3] === '✅ OK')->count();
         $total = count($results);
         $failed = $total - $passed;
 
@@ -125,9 +125,9 @@ class ConnectivityCheckCommand extends Command
         } else {
             error("❌ {$failed} of {$total} checks failed.");
 
-            $failedServers = collect($results)->filter(fn($row) => $row[3] !== '✅ OK')->pluck(0)->unique();
+            $failedServers = collect($results)->filter(fn ($row) => $row[3] !== '✅ OK')->pluck(0)->unique();
             $this->newLine();
-            warning('Potential connection issues detected for: ' . $failedServers->implode(', '));
+            warning('Potential connection issues detected for: '.$failedServers->implode(', '));
             $this->showFirewallAdvice();
 
             return 1;
@@ -146,12 +146,12 @@ class ConnectivityCheckCommand extends Command
             return [];
         }
 
-        note('Checking ' . count($secondaries) . ' secondary server(s)...');
+        note('Checking '.count($secondaries).' secondary server(s)...');
 
         $results = [];
         foreach ($secondaries as $index => $secondary) {
             $url = rtrim($secondary['url'] ?? '', '/');
-            $label = $secondary['name'] ?? 'Secondary #' . ($index + 1);
+            $label = $secondary['name'] ?? 'Secondary #'.($index + 1);
 
             if (empty($url)) {
                 $results[] = [$label, 'N/A', 'N/A', '❌ Failed', '-', 'No URL configured'];
@@ -161,12 +161,12 @@ class ConnectivityCheckCommand extends Command
 
             $parsed = parse_url($url);
             $host = $parsed['host'] ?? $url;
-            $port = isset($parsed['port']) ? ':' . $parsed['port'] : '';
+            $port = isset($parsed['port']) ? ':'.$parsed['port'] : '';
             $scheme = $parsed['scheme'] ?? 'http';
             $serverTypeLbl = strtoupper(config('hypercacheio.server_type', 'laravel'));
 
             $checkResults = spin(
-                fn() => $this->runFullCheck($label, $url, $apiToken, $timeout),
+                fn () => $this->runFullCheck($label, $url, $apiToken, $timeout),
                 "Checking {$label} [{$serverTypeLbl}] at {$scheme}://{$host}{$port}..."
             );
 
@@ -190,14 +190,14 @@ class ConnectivityCheckCommand extends Command
 
         $parsed = parse_url($primaryUrl);
         $host = $parsed['host'] ?? $primaryUrl;
-        $port = isset($parsed['port']) ? ':' . $parsed['port'] : '';
+        $port = isset($parsed['port']) ? ':'.$parsed['port'] : '';
         $scheme = $parsed['scheme'] ?? 'http';
         $serverTypeLbl = strtoupper(config('hypercacheio.server_type', 'laravel'));
 
         note("Checking connectivity to primary server [{$serverTypeLbl}] at {$scheme}://{$host}{$port}...");
 
         $results = spin(
-            fn() => $this->runFullCheck('Primary', $primaryUrl, $apiToken, $timeout),
+            fn () => $this->runFullCheck('Primary', $primaryUrl, $apiToken, $timeout),
             "Checking Primary [{$serverTypeLbl}] at {$scheme}://{$host}{$port}..."
         );
 
@@ -226,17 +226,17 @@ class ConnectivityCheckCommand extends Command
 
             // Peer format is likely IP:7400 (replication port)
             // We assume HTTP API is on the same host but using the configured HTTP port
-            $host = parse_url('tcp://' . $peer, PHP_URL_HOST) ?: explode(':', $peer)[0];
+            $host = parse_url('tcp://'.$peer, PHP_URL_HOST) ?: explode(':', $peer)[0];
             $httpPort = config('hypercacheio.go_server.port', 8080);
             $ssl = config('hypercacheio.go_server.ssl.enabled', false);
             $scheme = $ssl ? 'https' : 'http';
             $url = "{$scheme}://{$host}:{$httpPort}/api/hypercacheio";
-            $label = "Peer #" . ($index + 1) . " ({$host})";
+            $label = 'Peer #'.($index + 1)." ({$host})";
 
             note("Checking Peer [GO] at {$url}...");
 
             $checkResults = spin(
-                fn() => $this->runFullCheck($label, $url, $apiToken, $timeout),
+                fn () => $this->runFullCheck($label, $url, $apiToken, $timeout),
                 "Verifying HA Consistency with {$label}..."
             );
 
@@ -256,7 +256,7 @@ class ConnectivityCheckCommand extends Command
         }
 
         $results = [$pingResult];
-        $testKey = 'conn-check-' . Str::random(8);
+        $testKey = 'conn-check-'.Str::random(8);
 
         // 2. ADD (POST /add/{key})
         $results[] = $this->performRequest($label, $baseUrl, 'POST', "add/{$testKey}", [
@@ -292,30 +292,30 @@ class ConnectivityCheckCommand extends Command
 
     protected function performRequest(string $label, string $baseUrl, string $method, string $endpoint, array $data, string $apiToken, int $timeout): array
     {
-        $url = rtrim($baseUrl, '/') . '/' . ltrim($endpoint, '/');
+        $url = rtrim($baseUrl, '/').'/'.ltrim($endpoint, '/');
 
         try {
             $start = microtime(true);
 
             // Using Guzzle options directly provides better handling for cURL timeouts (error 28)
             $response = Http::withOptions([
-                        'connect_timeout' => max(1, $timeout),
-                        'timeout' => max(2, $timeout + 1), // Allow an extra second for transfer
-                    ])
-                        ->withHeaders([
-                            'X-Hypercacheio-Token' => $apiToken,
-                            'X-Hypercacheio-Server-ID' => gethostname(),
-                        ])
+                'connect_timeout' => max(1, $timeout),
+                'timeout' => max(2, $timeout + 1), // Allow an extra second for transfer
+            ])
+                ->withHeaders([
+                    'X-Hypercacheio-Token' => $apiToken,
+                    'X-Hypercacheio-Server-ID' => gethostname(),
+                ])
                 ->$method($url, $data);
 
             $elapsed = round((microtime(true) - $start) * 1000, 1);
 
             $status = $response->successful() ? '✅ OK' : '❌ Failed';
-            $message = $response->successful() ? '-' : "HTTP {$response->status()}: " . Str::limit($response->body(), 40);
+            $message = $response->successful() ? '-' : "HTTP {$response->status()}: ".Str::limit($response->body(), 40);
 
             if ($endpoint === 'ping' && $response->successful()) {
                 $json = $response->json();
-                $message = 'Role: ' . ($json['role'] ?? '?') . ', Host: ' . ($json['hostname'] ?? '?');
+                $message = 'Role: '.($json['role'] ?? '?').', Host: '.($json['hostname'] ?? '?');
             }
 
             return [
@@ -352,7 +352,7 @@ class ConnectivityCheckCommand extends Command
         $urls = ["{$scheme}://127.0.0.1:{$port}/api/hypercacheio"];
 
         // Add configured host as fallback only if it differs from loopback
-        if (!in_array($host, ['127.0.0.1', 'localhost', '::1'])) {
+        if (! in_array($host, ['127.0.0.1', 'localhost', '::1'])) {
             $urls[] = "{$scheme}://{$host}:{$port}/api/hypercacheio";
         }
 
