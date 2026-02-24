@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.0] - 2026-02-24
+
+### Added
+- **Active-Active HA Mode**: Introduced a major architectural upgrade allowing multiple Go cache nodes to synchronize state in real-time.
+- **Binary TCP Replication**: Go servers now use a custom binary protocol over TCP for ultra-low latency replication (SET, DEL, FLUSH operations).
+- **Multi-Peer Support**: Replaced single peer configuration with `HYPERCACHEIO_PEER_ADDRS` to support full-mesh clusters of 2 or more nodes.
+- **Bootstrap Synchronization**: New nodes now automatically request a full state dump from existing peers upon connection.
+- **Atomic HA Locks**: Re-engineered distributed locking with `sync.RWMutex` to ensure full atomicity in HA/cluster mode.
+- **HA Connectivity Check**: The `hypercacheio:connectivity-check` command now supports HA mode, verifying all peers in the cluster.
+
+### Fixed
+- **Double Prefixing**: Removed redundant internal prefixing in `HypercacheioStore.php`. Keys are now stored in Go exactly as Laravel's Repository provides them.
+- **Config Inheritance**: Improved merging of global `hypercacheio.php` settings with store-specific overrides in `config/cache.php`.
+- **Lock Owner Identity**: Fixed a bug where lock owners were not correctly compared in HA mode.
+
 ## [1.5.1] - 2026-02-24
 
 ### Added

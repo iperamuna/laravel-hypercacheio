@@ -15,6 +15,7 @@ Designed for modern PHP environments like **FrankenPHP**, **Swoole**, and tradit
 - **🚀 High Performance**: Built on SQLite WAL (Write-Ahead Logging) for lightning-fast reads and writes.
 - **🧠 L1 In-Memory Cache**: Ephemeral memory caching for instant access during the request lifecycle.
 - **🐹 Go Server (New)**: Optional standalone Go-based binary for high-concurrency inter-server synchronization.
+- **🔄 Active-Active HA Mode**: Fully synchronized multi-node clusters using binary TCP replication.
 - **🛡️ Service Management**: Built-in support for running as a systemd (Linux) or launchd (macOS) service with auto-restart.
 - **🔒 Distributed Locking**: Full support for atomic locks across multiple servers.
 - **⚡ Atomic Operations**: Native support for `Cache::add()` and atomic `increment`/`decrement`.
@@ -123,6 +124,9 @@ return [
 | `HYPERCACHEIO_GO_HOST` | External/advertised IP of the Go server (used by secondaries) | `127.0.0.1` |
 | `HYPERCACHEIO_GO_LISTEN_HOST` | IP the Go daemon **binds** to. Use `0.0.0.0` to listen on all interfaces | `0.0.0.0` |
 | `HYPERCACHEIO_GO_PORT` | Port the Go server listens on | `8080` |
+| `HYPERCACHEIO_HA_ENABLED` | Enable Active-Active HA Mode | `true` |
+| `HYPERCACHEIO_PEER_ADDRS` | Comma-separated replication peers (IP:Port) | _(empty)_ |
+| `HYPERCACHEIO_REPL_PORT` | Port for inter-node binary replication | `7400` |
 
 ---
 
@@ -145,11 +149,25 @@ HYPERCACHEIO_GO_HOST=10.80.3.131
 HYPERCACHEIO_GO_PORT=8185
 
 # IP the daemon binds to — 0.0.0.0 (default) listens on all interfaces.
-# This allows local health-checks via 127.0.0.1 to work even on dedicated LAN IPs.
 HYPERCACHEIO_GO_LISTEN_HOST=0.0.0.0
 ```
 
-> **`host` vs `listen_host`**: `host` is the *advertised* address (what others connect to). `listen_host` is what the daemon *binds* to. Keep `listen_host=0.0.0.0` unless you need to restrict which interface the daemon uses.
+### 2. Active-Active HA Mode (TCP Replication)
+
+As of version **1.6.0**, Hyper-Cache-IO supports a robust Active-Active HA architecture. Multiple application servers can each run their own local Go cache node, with all nodes synchronizing state in real-time over a dedicated binary TCP protocol.
+
+- **Full-Mesh Replication**: Every write on one node is instantly broadcast to all configured peers.
+- **Bootstrap Sync**: When a new node joins the cluster, it automatically requests a full state dump from existing peers.
+- **Zero-Wait Primary**: No more bottlenecking on a single "Primary" URL. Your app talks to its local node, and replication happens in the background.
+
+To enable HA Mode, configure your peers in `.env`:
+```dotenv
+HYPERCACHEIO_HA_ENABLED=true
+HYPERCACHEIO_REPL_PORT=7400
+
+# Comma-separated list of peer IP:REPL_PORT addresses
+HYPERCACHEIO_PEER_ADDRS=10.0.0.2:7400,10.0.0.3:7400
+```
 
 > The `hypercacheio:go-server` command will automatically configure the Go binary to use your application's absolute database path (`config('hypercacheio.sqlite_path')`) and cache prefix (`config('cache.prefix')`).
 

@@ -171,6 +171,15 @@ return [
     */
     'go_server' => [
         /*
+         * Enable Active-Active HA mode. In this mode, both nodes are equal.
+         * Replication happens via persistent TCP between Go servers.
+         */
+        'ha_mode' => env('HYPERCACHEIO_HA_ENABLED', true),
+
+        'peer_addrs' => env('HYPERCACHEIO_PEER_ADDRS', ''), // e.g. 10.0.0.2:7400,10.0.0.3:7400
+        'repl_port' => env('HYPERCACHEIO_REPL_PORT', 7400),
+
+        /*
          * When set to true, the Go server will interact directly with the SQLite
          * database for caching and locking operations instead of relaying requests
          * through `php artisan`. This drastically improves performance.

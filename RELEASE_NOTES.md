@@ -1,3 +1,43 @@
+# Release Notes - v1.6.0
+
+**Laravel Hyper-Cache-IO**
+
+This major update introduces **Active-Active High Availability (HA)** mode, providing real-time state synchronization across multiple Go cache nodes using a high-performance binary TCP protocol.
+
+## 🔄 Active-Active HA Mode
+Version 1.6.0 transforms Hyper-Cache-IO into a truly distributed cache system for high-availability clusters.
+*   **Decentralized Synchronisation**: Every application server can now run as an active peer. There is no single point of failure.
+*   **Binary Replication**: We've implemented a custom binary protocol over TCP for inter-node communication, ensuring that cache updates are replicated in microseconds.
+*   **Mesh Networking**: Configure multiple peers via `HYPERCACHEIO_PEER_ADDRS` to form a resilient full-mesh cluster.
+*   **Automatic Bootstrapping**: New nodes automatically "sync up" their memory state from existing peers as soon as they join the cluster.
+
+## 🛡️ Atomic HA Distributed Locking
+Distributed locks have been re-engineered for the cluster environment.
+*   **Thread Safety**: Locks now use Go's `sync.RWMutex` to wrap atomic check-and-set operations.
+*   **Global Awareness**: Lock acquisitions are broadcast across all peers, ensuring that a lock held on Node A is respected by Node B and Node C instantly.
+
+## 🔑 Clean Key Management
+*   **Standardized Prefixing**: We've aligned our key handling with Laravel's core `Cache\Repository`. Internal redundant prefixing has been removed, ensuring that your `config('cache.prefix')` works exactly as expected without "double-prefixing" issues.
+
+## 🔍 Cluster Connectivity Diagnostics
+The connectivity check command is now HA-aware:
+*   **Peer Verification**: Running `php artisan hypercacheio:connectivity-check` will now iterate through every node in your cluster, verifying HTTP API connectivity and replication consistency.
+
+## 📦 Upgrade
+1.  Update the package via Composer.
+2.  Enable HA mode in your `.env`:
+    ```dotenv
+    HYPERCACHEIO_HA_ENABLED=true
+    HYPERCACHEIO_PEER_ADDRS=10.0.0.1:7400,10.0.0.2:7400
+    ```
+3.  Re-compile and restart your Go servers:
+    ```bash
+    php artisan hypercacheio:go-server compile
+    php artisan hypercacheio:go-server restart
+    ```
+
+---
+
 # Release Notes - v1.5.1
 
 **Laravel Hyper-Cache-IO**

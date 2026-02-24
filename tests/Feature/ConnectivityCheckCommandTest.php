@@ -98,3 +98,24 @@ it('bypasses local ping check when disable_local_ping_check is true', function (
         ->doesntExpectOutputToContain('is not responding at')
         ->assertExitCode(0);
 });
+
+it('runs connectivity check successfully for HA mode', function () {
+    config(['hypercacheio.server_type' => 'go']);
+    config(['hypercacheio.go_server.ha_mode' => true]);
+    config(['hypercacheio.go_server.peer_addrs' => '10.0.0.2:7400,10.0.0.3:7400']);
+    config(['hypercacheio.go_server.port' => 8080]);
+    config(['hypercacheio.api_token' => 'test-token']);
+    config(['hypercacheio.go_server.disable_local_ping_check' => true]);
+
+    Http::fake([
+        '10.0.0.2:8080/api/hypercacheio/ping' => Http::response(['role' => 'go-server-ha', 'hostname' => 'peer1'], 200),
+        '10.0.0.3:8080/api/hypercacheio/ping' => Http::response(['role' => 'go-server-ha', 'hostname' => 'peer2'], 200),
+        '10.0.0.2:8080/api/hypercacheio/*' => Http::response(['success' => true, 'added' => true, 'acquired' => true, 'released' => true], 200),
+        '10.0.0.3:8080/api/hypercacheio/*' => Http::response(['success' => true, 'added' => true, 'acquired' => true, 'released' => true], 200),
+    ]);
+
+    artisan('hypercacheio:connectivity-check')
+        ->expectsOutputToContain('Verifying HA Consistency with Peer #1 (10.0.0.2)...')
+        ->expectsOutputToContain('Verifying HA Consistency with Peer #2 (10.0.0.3)...')
+        ->assertExitCode(0);
+});

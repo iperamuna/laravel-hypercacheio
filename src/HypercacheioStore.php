@@ -52,6 +52,11 @@ class HypercacheioStore implements LockProvider, Store
     protected array $promises = [];
 
     /**
+     * Whether HA mode is enabled.
+     */
+    protected bool $haMode;
+
+    /**
      * Create a new Hypercacheio store instance.
      *
      * @return void
@@ -63,8 +68,18 @@ class HypercacheioStore implements LockProvider, Store
         $this->primaryUrl = $config['primary_url'] ?? '';
         $this->apiToken = $config['api_token'] ?? '';
         $this->async = $config['async_requests'] ?? true;
+        $this->haMode = $config['go_server']['ha_mode'] ?? $config['ha_mode'] ?? false;
 
-        if ($this->role === 'primary') {
+        if ($this->haMode && ($config['server_type'] ?? 'laravel') === 'go') {
+            // In HA mode with Go server, we always talk to the LOCAL Go server.
+            // The Go server handles replication to the peer.
+            $goConfig = $config['go_server'] ?? [];
+            $port = $goConfig['port'] ?? 8080;
+            $this->primaryUrl = "http://127.0.0.1:{$port}/api/hypercacheio";
+            $this->role = 'secondary'; // Treat as secondary to force HTTP requests to Go server
+        }
+
+        if ($this->role === 'primary' && ! $this->haMode) {
             $directory = $config['sqlite_path'] ?? storage_path('hypercacheio');
             $this->initSqlite($directory);
         }
@@ -134,14 +149,13 @@ class HypercacheioStore implements LockProvider, Store
 
     public function get($key)
     {
-        $prefixedKey = $this->prefix.$key;
-        if (isset($this->l1[$prefixedKey])) {
-            return $this->l1[$prefixedKey];
+        if (isset($this->l1[$key])) {
+            return $this->l1[$key];
         }
 
-        if ($this->role === 'primary') {
+        if ($this->role === 'primary' && ! $this->haMode) {
             $stmt = $this->sqlite->prepare('SELECT value, expiration FROM cache WHERE key=:key');
-            $stmt->execute([':key' => $prefixedKey]);
+            $stmt->execute([':key' => $key]);
             $row = $stmt->fetch(\PDO::FETCH_ASSOC);
 
             if (! $row || ($row['expiration'] && $row['expiration'] < time())) {
@@ -149,12 +163,13 @@ class HypercacheioStore implements LockProvider, Store
             }
             $value = unserialize($row['value']);
         } else {
-            // Secondary: Sync Fetch
-            $value = $this->doRequest('get', "cache/{$prefixedKey}", [], true);
+            // HA or Secondary: Sync Fetch from Go server or Primary
+            $response = $this->doRequest('get', "cache/{$key}", [], true);
+            $value = $response['data'] ?? null;
         }
 
         if ($value !== null) {
-            $this->l1[$prefixedKey] = $value;
+            $this->l1[$key] = $value;
         }
 
         return $value;
@@ -162,11 +177,10 @@ class HypercacheioStore implements LockProvider, Store
 
     public function put($key, $value, $seconds = null)
     {
-        $prefixedKey = $this->prefix.$key;
-        $this->l1[$prefixedKey] = $value;
+        $this->l1[$key] = $value;
         $expiration = $seconds ? time() + (int) $seconds : null;
 
-        if ($this->role === 'primary') {
+        if ($this->role === 'primary' && ! $this->haMode) {
             // Chance to GC
             $this->gc();
 
@@ -175,12 +189,12 @@ class HypercacheioStore implements LockProvider, Store
                 REPLACE INTO cache(key, value, expiration)
                 VALUES(:key, :value, :exp)
             ');
-            $stmt->execute([':key' => $prefixedKey, ':value' => $serialized, ':exp' => $expiration]);
+            $stmt->execute([':key' => $key, ':value' => $serialized, ':exp' => $expiration]);
 
             return true;
         } else {
 
-            $this->doRequest('post', "cache/{$prefixedKey}", ['value' => $value, 'ttl' => $seconds]);
+            $this->doRequest('post', "cache/{$key}", ['value' => $value, 'ttl' => $seconds]);
 
             return true;
         }
@@ -188,25 +202,24 @@ class HypercacheioStore implements LockProvider, Store
 
     public function add($key, $value, $seconds)
     {
-        $prefixedKey = $this->prefix.$key;
         $expiration = $seconds ? time() + (int) $seconds : null;
 
-        if ($this->role === 'primary') {
+        if ($this->role === 'primary' && ! $this->haMode) {
             $serialized = serialize($value);
             try {
                 $stmt = $this->sqlite->prepare('INSERT INTO cache(key, value, expiration) VALUES(:key, :value, :exp)');
-                $stmt->execute([':key' => $prefixedKey, ':value' => $serialized, ':exp' => $expiration]);
+                $stmt->execute([':key' => $key, ':value' => $serialized, ':exp' => $expiration]);
 
                 return true;
             } catch (\PDOException $e) {
                 // Check if expired
                 $stmt = $this->sqlite->prepare('SELECT expiration FROM cache WHERE key=:key');
-                $stmt->execute([':key' => $prefixedKey]);
+                $stmt->execute([':key' => $key]);
                 $row = $stmt->fetch(\PDO::FETCH_ASSOC);
 
                 if ($row && $row['expiration'] && $row['expiration'] < time()) {
                     $stmt = $this->sqlite->prepare('UPDATE cache SET value=:value, expiration=:exp WHERE key=:key');
-                    $stmt->execute([':key' => $prefixedKey, ':value' => $serialized, ':exp' => $expiration]);
+                    $stmt->execute([':key' => $key, ':value' => $serialized, ':exp' => $expiration]);
 
                     return true;
                 }
@@ -214,7 +227,7 @@ class HypercacheioStore implements LockProvider, Store
                 return false;
             }
         } else {
-            $response = $this->doRequest('post', "add/{$prefixedKey}", ['value' => $value, 'ttl' => $seconds], true);
+            $response = $this->doRequest('post', "add/{$key}", ['value' => $value, 'ttl' => $seconds], true);
 
             return $response['added'] ?? false;
         }
@@ -248,16 +261,15 @@ class HypercacheioStore implements LockProvider, Store
 
     public function forget($key)
     {
-        $prefixedKey = $this->prefix.$key;
-        unset($this->l1[$prefixedKey]);
+        unset($this->l1[$key]);
 
-        if ($this->role === 'primary') {
+        if ($this->role === 'primary' && ! $this->haMode) {
             $stmt = $this->sqlite->prepare('DELETE FROM cache WHERE key=:key');
-            $stmt->execute([':key' => $prefixedKey]);
+            $stmt->execute([':key' => $key]);
 
             return true;
         } else {
-            $this->doRequest('delete', "cache/{$prefixedKey}");
+            $this->doRequest('delete', "cache/{$key}");
 
             return true;
         }
@@ -318,24 +330,23 @@ class HypercacheioStore implements LockProvider, Store
 
     public function acquireLock($key, $owner, $seconds)
     {
-        $prefixedKey = $this->prefix.$key;
         $expiration = time() + $seconds;
 
-        if ($this->role === 'primary') {
+        if ($this->role === 'primary' && ! $this->haMode) {
             try {
                 $stmt = $this->sqlite->prepare('INSERT INTO cache_locks(key, owner, expiration) VALUES(:key, :owner, :exp)');
-                $stmt->execute([':key' => $prefixedKey, ':owner' => $owner, ':exp' => $expiration]);
+                $stmt->execute([':key' => $key, ':owner' => $owner, ':exp' => $expiration]);
 
                 return true;
             } catch (\PDOException $e) {
                 // Check if expired
                 $stmt = $this->sqlite->prepare('SELECT expiration FROM cache_locks WHERE key=:key');
-                $stmt->execute([':key' => $prefixedKey]);
+                $stmt->execute([':key' => $key]);
                 $row = $stmt->fetch(\PDO::FETCH_ASSOC);
 
                 if ($row && $row['expiration'] < time()) {
                     $stmt = $this->sqlite->prepare('UPDATE cache_locks SET owner=:owner, expiration=:exp WHERE key=:key');
-                    $stmt->execute([':key' => $prefixedKey, ':owner' => $owner, ':exp' => $expiration]);
+                    $stmt->execute([':key' => $key, ':owner' => $owner, ':exp' => $expiration]);
 
                     return true;
                 }
@@ -343,8 +354,8 @@ class HypercacheioStore implements LockProvider, Store
                 return false;
             }
         } else {
-            // Secondary
-            $response = $this->doRequest('post', "lock/{$prefixedKey}", [
+            // Secondary or HA
+            $response = $this->doRequest('post', "lock/{$key}", [
                 'owner' => $owner,
                 'ttl' => $seconds,
             ], true);
@@ -355,15 +366,13 @@ class HypercacheioStore implements LockProvider, Store
 
     public function releaseLock($key, $owner)
     {
-        $prefixedKey = $this->prefix.$key;
-
-        if ($this->role === 'primary') {
+        if ($this->role === 'primary' && ! $this->haMode) {
             $stmt = $this->sqlite->prepare('DELETE FROM cache_locks WHERE key=:key AND owner=:owner');
-            $stmt->execute([':key' => $prefixedKey, ':owner' => $owner]);
+            $stmt->execute([':key' => $key, ':owner' => $owner]);
 
             return $stmt->rowCount() > 0;
         } else {
-            $response = $this->doRequest('delete', "lock/{$prefixedKey}", [
+            $response = $this->doRequest('delete', "lock/{$key}", [
                 'owner' => $owner,
             ], true);
 
@@ -373,10 +382,9 @@ class HypercacheioStore implements LockProvider, Store
 
     public function getLockOwner($key)
     {
-        $prefixedKey = $this->prefix.$key;
-        if ($this->role === 'primary') {
+        if ($this->role === 'primary' && ! $this->haMode) {
             $stmt = $this->sqlite->prepare('SELECT owner FROM cache_locks WHERE key=:key');
-            $stmt->execute([':key' => $prefixedKey]);
+            $stmt->execute([':key' => $key]);
 
             return $stmt->fetchColumn() ?: '';
         }

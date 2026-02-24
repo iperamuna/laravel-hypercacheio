@@ -17,6 +17,7 @@ beforeEach(function () {
 
 it('can generate service files via make-service', function () {
     $binDir = config('hypercacheio.go_server.build_path');
+    File::ensureDirectoryExists($binDir);
     $binName = 'hypercacheio-server-' . strtolower(PHP_OS_FAMILY) . '-' . (strtolower(php_uname('m')) === 'x86_64' ? 'amd64' : 'arm64');
     $binPath = $binDir . '/' . $binName;
     File::put($binPath, 'dummy-binary');

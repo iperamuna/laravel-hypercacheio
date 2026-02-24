@@ -197,7 +197,6 @@ class GoServerCommand extends Command
             '--token='.config('hypercacheio.api_token'),
             '--artisan="'.base_path('artisan').'"',
             '--sqlite-path="'.$sqlitePath.'"',
-            '--prefix="'.$prefix.'"',
             '--direct-sqlite='.$directSqlite,
         ];
 
@@ -205,6 +204,11 @@ class GoServerCommand extends Command
             $args[] = '--ssl=true';
             $args[] = "--cert={$config['ssl']['certificate']}";
             $args[] = "--key={$config['ssl']['certificate_key']}";
+        }
+
+        if ($config['ha_mode'] && ! empty($config['peer_addrs'])) {
+            $args[] = "--peers={$config['peer_addrs']}";
+            $args[] = "--repl-port={$config['repl_port']}";
         }
 
         $logPath = $config['log_path'];
@@ -360,7 +364,6 @@ class GoServerCommand extends Command
             '--token='.config('hypercacheio.api_token'),
             '--artisan="'.base_path('artisan').'"',
             '--sqlite-path="'.$sqlitePath.'"',
-            '--prefix="'.$prefix.'"',
             '--direct-sqlite='.$directSqlite,
         ];
 
@@ -368,6 +371,11 @@ class GoServerCommand extends Command
             $argsList[] = '--ssl=true';
             $argsList[] = "--cert={$config['ssl']['certificate']}";
             $argsList[] = "--key={$config['ssl']['certificate_key']}";
+        }
+
+        if ($config['ha_mode'] && ! empty($config['peer_addrs'])) {
+            $argsList[] = "--peers={$config['peer_addrs']}";
+            $argsList[] = "--repl-port={$config['repl_port']}";
         }
 
         $fullCommand = "$binPath ".implode(' ', $argsList);
