@@ -54,7 +54,17 @@ var (
 	// Peer connections
 	peers      = make(map[string]net.Conn)
 	peersMutex sync.Mutex
+
+	// Stats
+	stats      Stats
+	statsMutex sync.Mutex
 )
+
+type Stats struct {
+	TotalBroadcasts uint64 `json:"total_broadcasts"`
+	TotalReceived   uint64 `json:"total_received"`
+	SyncRequests    uint64 `json:"sync_requests_received"`
+}
 
 type CacheItem struct {
 	Value      []byte
@@ -146,6 +156,7 @@ func main() {
 	mux.HandleFunc("/api/hypercacheio/add/", handleAdd)
 	mux.HandleFunc("/api/hypercacheio/lock/", handleLock)
 	mux.HandleFunc("/api/hypercacheio/ping", handlePing)
+	mux.HandleFunc("/api/hypercacheio/items", handleItems)
 
 	serverAddr := fmt.Sprintf("%s:%d", host, port)
 	log.Printf("Starting Hypercacheio HTTP API on %s", serverAddr)
@@ -201,6 +212,10 @@ func handleReplicationConn(conn net.Conn) {
 			return
 		}
 
+		statsMutex.Lock()
+		stats.TotalReceived++
+		statsMutex.Unlock()
+
 		switch op {
 		case OpSet:
 			key, val, exp, err := readSetFrame(reader)
@@ -221,6 +236,9 @@ func handleReplicationConn(conn net.Conn) {
 			flushLocal(false)
 		case OpSyncReq:
 			log.Printf("Received SYNC request from peer %s", conn.RemoteAddr())
+			statsMutex.Lock()
+			stats.SyncRequests++
+			statsMutex.Unlock()
 			sendFullDump(conn)
 		}
 	}
@@ -263,6 +281,10 @@ func handlePeerResponses(conn net.Conn) {
 		if err != nil {
 			return
 		}
+
+		statsMutex.Lock()
+		stats.TotalReceived++
+		statsMutex.Unlock()
 
 		switch op {
 		case OpSyncItem:
@@ -313,6 +335,10 @@ func broadcastSet(key string, val []byte, expiration int64) {
 		err := writeSetFrame(conn, OpSet, key, val, expiration)
 		if err != nil {
 			log.Printf("Failed to broadcast SET to %s: %v", addr, err)
+		} else {
+			statsMutex.Lock()
+			stats.TotalBroadcasts++
+			statsMutex.Unlock()
 		}
 	}
 }
@@ -324,6 +350,10 @@ func broadcastDel(key string) {
 		err := writeDelFrame(conn, key)
 		if err != nil {
 			log.Printf("Failed to broadcast DEL to %s: %v", addr, err)
+		} else {
+			statsMutex.Lock()
+			stats.TotalBroadcasts++
+			statsMutex.Unlock()
 		}
 	}
 }
@@ -335,6 +365,10 @@ func broadcastFlush() {
 		_, err := conn.Write([]byte{OpFlush})
 		if err != nil {
 			log.Printf("Failed to broadcast FLUSH to %s: %v", addr, err)
+		} else {
+			statsMutex.Lock()
+			stats.TotalBroadcasts++
+			statsMutex.Unlock()
 		}
 	}
 }
@@ -686,15 +720,60 @@ func handlePing(w http.ResponseWriter, r *http.Request) {
 		role = "go-server-ha"
 	}
 
+	statsMutex.Lock()
+	currentStats := stats
+	statsMutex.Unlock()
+
 	writeJSON(w, map[string]interface{}{
-		"message":     "pong",
-		"role":        role,
-		"hostname":    hostName,
-		"time":        time.Now().Unix(),
-		"peers":       peerList,
-		"items_count": len(cache),
-		"ha_mode":     haMode,
+		"message":          "pong",
+		"role":             role,
+		"hostname":         hostName,
+		"time":             time.Now().Unix(),
+		"peers":            peerList,
+		"items_count":      len(cache),
+		"ha_mode":          haMode,
+		"replication_port": replPort,
+		"stats":            currentStats,
 	})
+}
+
+func handleItems(w http.ResponseWriter, r *http.Request) {
+	cacheMutex.RLock()
+	defer cacheMutex.RUnlock()
+
+	type Item struct {
+		Key        string      `json:"key"`
+		Value      interface{} `json:"value"`
+		Expiration int64       `json:"expiration"`
+		IsLock     bool        `json:"is_lock"`
+	}
+
+	items := make([]Item, 0, len(cache))
+	for k, v := range cache {
+		isLock := strings.HasPrefix(k, "lock:")
+
+		var parsedValue interface{}
+		if isLock {
+			parsedValue = string(v.Value)
+		} else {
+			decoder := php_serialize.NewUnSerializer(string(v.Value))
+			parsed, err := decoder.Decode()
+			if err == nil {
+				parsedValue = parsed
+			} else {
+				parsedValue = "[Binary Data]"
+			}
+		}
+
+		items = append(items, Item{
+			Key:        k,
+			Value:      parsedValue,
+			Expiration: v.Expiration,
+			IsLock:     isLock,
+		})
+	}
+
+	writeJSON(w, items)
 }
 
 func initSqlite() error {

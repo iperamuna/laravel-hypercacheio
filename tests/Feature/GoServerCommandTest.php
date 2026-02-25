@@ -5,21 +5,38 @@ use Illuminate\Support\Facades\File;
 use function Pest\Laravel\artisan;
 
 beforeEach(function () {
-    $binDir = __DIR__.'/../bin';
+    $binDir = __DIR__ . '/../bin';
 
-    if (! File::exists($binDir)) {
+    if (!File::exists($binDir)) {
         File::makeDirectory($binDir, 0755, true);
     }
 
     config(['hypercacheio.go_server.build_path' => $binDir]);
     config(['hypercacheio.go_server.listen_host' => '0.0.0.0']);
+    config(['hypercacheio.go_server.pid_path' => storage_path('hypercacheio-server.pid')]);
+});
+
+it('can show help for go-server command', function () {
+    artisan('hypercacheio:go-server --help')
+        ->expectsOutputToContain('service:restart')
+        ->assertExitCode(0);
+});
+
+it('can restart the go server daemon', function () {
+    config(['hypercacheio.go_server.bin_path' => '/non/existent/path']);
+
+    // restart calls stop then start
+    artisan('hypercacheio:go-server restart')
+        ->expectsOutputToContain('Go server is not running')
+        ->expectsOutputToContain('Go server binary not found')
+        ->assertExitCode(0);
 });
 
 it('can generate service files via make-service', function () {
     $binDir = config('hypercacheio.go_server.build_path');
     File::ensureDirectoryExists($binDir);
-    $binName = 'hypercacheio-server-'.strtolower(PHP_OS_FAMILY).'-'.(strtolower(php_uname('m')) === 'x86_64' ? 'amd64' : 'arm64');
-    $binPath = $binDir.'/'.$binName;
+    $binName = 'hypercacheio-server-' . strtolower(PHP_OS_FAMILY) . '-' . (strtolower(php_uname('m')) === 'x86_64' ? 'amd64' : 'arm64');
+    $binPath = $binDir . '/' . $binName;
     File::put($binPath, 'dummy-binary');
 
     artisan('hypercacheio:go-server make-service')

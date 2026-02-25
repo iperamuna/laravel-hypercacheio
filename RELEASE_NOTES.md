@@ -1,3 +1,19 @@
+# Release Notes - v1.6.5
+
+**Laravel Hyper-Cache-IO**
+
+This release focuses on observability and management of the HA cluster, introducing real-time statistics and advanced synchronization inspection.
+
+## 📊 Cluster Observability
+The Go server now tracks and exposes detailed replication statistics, allowing you to monitor the health and throughput of your HA cluster.
+- **Binary Replication Stats**: View real-time counts of broadcasts sent and updates received via the TCP engine.
+- **Item Inspection Endpoint**: New `/api/hypercacheio/items` endpoint allows for deep inspection of the in-memory cache and active locks.
+
+## 🔄 Improved Service Management
+- **One-Command Restart**: Introducing `php artisan hypercacheio:go-server service:restart` to quickly bounce the system service on both Linux (systemd) and macOS (launchd).
+
+---
+
 # Release Notes - v1.6.4
 
 **Laravel Hyper-Cache-IO**
@@ -190,12 +206,6 @@ composer update iperamuna/laravel-hypercacheio
 To switch to the Go server, update your `.env`:
 ```dotenv
 HYPERCACHEIO_SERVER_TYPE=go
-```
-
-Then compile and start the server:
-```bash
-php artisan hypercacheio:go-server compile
-php artisan hypercacheio:go-server start
 ```
 
 ---

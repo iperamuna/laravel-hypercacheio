@@ -184,7 +184,7 @@ php artisan hypercacheio:go-server start
 # 📊 Check daemon status (PID / systemd / launchd / process scan)
 php artisan hypercacheio:go-server status
 
-# 🔄 Restart the daemon
+# 🔄 Restart the daemon (Artisan managed)
 php artisan hypercacheio:go-server restart
 
 # 🛑 Stop the daemon
@@ -205,6 +205,7 @@ php artisan hypercacheio:go-server make-service
 
 # Step 3: Manage via Artisan
 php artisan hypercacheio:go-server service:start   # Load and start the service
+php artisan hypercacheio:go-server service:restart # Cycle the service
 php artisan hypercacheio:go-server service:stop    # Stop the service
 php artisan hypercacheio:go-server service:status  # View service status (systemd/launchd output)
 php artisan hypercacheio:go-server service:remove  # Disable and remove the service
