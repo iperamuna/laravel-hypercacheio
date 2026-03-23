@@ -47,9 +47,11 @@ var (
 
 	db *sql.DB
 
-	// In-memory cache
-	cache      = make(map[string]CacheItem)
-	cacheMutex sync.RWMutex
+	// Sharded In-memory cache
+	cache        = newShardedCache()
+	
+	// DB Persistence Channel
+	dbChan       = make(chan dbJob, 5000)
 
 	// Peer connections
 	peers      = make(map[string]net.Conn)
@@ -59,6 +61,40 @@ var (
 	stats      Stats
 	statsMutex sync.Mutex
 )
+
+const NumShards = 32
+
+type ShardedCache struct {
+	shards [NumShards]*Shard
+}
+
+type Shard struct {
+	items map[string]CacheItem
+	mutex sync.RWMutex
+}
+
+func newShardedCache() *ShardedCache {
+	sc := &ShardedCache{}
+	for i := 0; i < NumShards; i++ {
+		sc.shards[i] = &Shard{items: make(map[string]CacheItem)}
+	}
+	return sc
+}
+
+func (sc *ShardedCache) getShard(key string) *Shard {
+	var sum uint32
+	for _, b := range key {
+		sum = (sum * 31) + uint32(b)
+	}
+	return sc.shards[sum%NumShards]
+}
+
+type dbJob struct {
+	op  string
+	key string
+	val []byte
+	exp int64
+}
 
 type Stats struct {
 	TotalBroadcasts uint64 `json:"total_broadcasts"`
@@ -124,15 +160,24 @@ func main() {
 	// Initialize SQLite if provided (optional persistence)
 	if sqlitePath != "" && directSqlite {
 		var err error
-		db, err = sql.Open("sqlite", sqlitePath)
+		// Enable WAL mode and synchronous=NORMAL for much faster writes
+		connStr := sqlitePath
+		if !strings.Contains(connStr, "?") {
+			connStr += "?_pragma=journal_mode=WAL&_pragma=synchronous=NORMAL&_pragma=cache_size=-2000"
+		}
+		db, err = sql.Open("sqlite", connStr)
 		if err != nil {
 			log.Fatalf("Failed to open SQLite database: %s", err)
 		}
-		db.SetMaxOpenConns(10)
+		db.SetMaxOpenConns(25) // Increase for better parallel persistence
 		if err := initSqlite(); err != nil {
 			log.Fatalf("Failed to initialize SQLite schema: %s", err)
 		}
-		log.Printf("SQLite persistence enabled: %s", sqlitePath)
+		log.Printf("SQLite persistence enabled (WAL mode): %s", sqlitePath)
+		
+		// Start Async DB Worker
+		go startDbWorker()
+		
 		loadFromSqlite()
 	}
 
@@ -318,17 +363,22 @@ func sendSyncRequest(conn net.Conn) {
 }
 
 func sendFullDump(conn net.Conn) {
-	cacheMutex.RLock()
-	defer cacheMutex.RUnlock()
-
-	log.Printf("Sending full dump (%d items) to %s", len(cache), conn.RemoteAddr())
-	for k, v := range cache {
-		if v.Expiration > 0 && v.Expiration < time.Now().Unix() {
-			continue
+	log.Printf("Sending full dump from all shards to %s", conn.RemoteAddr())
+	count := 0
+	for i := 0; i < NumShards; i++ {
+		shard := cache.shards[i]
+		shard.mutex.RLock()
+		for k, v := range shard.items {
+			if v.Expiration > 0 && v.Expiration < time.Now().Unix() {
+				continue
+			}
+			writeSetFrame(conn, OpSyncItem, k, v.Value, v.Expiration)
+			count++
 		}
-		writeSetFrame(conn, OpSyncItem, k, v.Value, v.Expiration)
+		shard.mutex.RUnlock()
 	}
 	conn.Write([]byte{OpSyncEnd})
+	log.Printf("Sent full dump (%d items) to %s", count, conn.RemoteAddr())
 }
 
 func broadcastSet(key string, val []byte, expiration int64) {
@@ -452,16 +502,17 @@ func readDelFrame(r *bufio.Reader) (string, error) {
 // -------------------------------------------------------------
 
 func setLocal(key string, val []byte, expiration int64, broadcast bool) {
-	cacheMutex.Lock()
-	cache[key] = CacheItem{Value: val, Expiration: expiration}
-	cacheMutex.Unlock()
+	shard := cache.getShard(key)
+	shard.mutex.Lock()
+	shard.items[key] = CacheItem{Value: val, Expiration: expiration}
+	shard.mutex.Unlock()
 
 	if db != nil {
-		var exp interface{}
-		if expiration > 0 {
-			exp = expiration
+		select {
+		case dbChan <- dbJob{op: "SET", key: key, val: val, exp: expiration}:
+		default:
+			log.Printf("DB channel full, dropping persistence for key: %s", key)
 		}
-		db.Exec("REPLACE INTO cache(key, value, expiration) VALUES(?, ?, ?)", key, val, exp)
 	}
 
 	if broadcast {
@@ -470,9 +521,10 @@ func setLocal(key string, val []byte, expiration int64, broadcast bool) {
 }
 
 func getLocal(key string) ([]byte, bool) {
-	cacheMutex.RLock()
-	item, ok := cache[key]
-	cacheMutex.RUnlock()
+	shard := cache.getShard(key)
+	shard.mutex.RLock()
+	item, ok := shard.items[key]
+	shard.mutex.RUnlock()
 
 	if !ok {
 		return nil, false
@@ -485,12 +537,17 @@ func getLocal(key string) ([]byte, bool) {
 }
 
 func delLocal(key string, broadcast bool) {
-	cacheMutex.Lock()
-	delete(cache, key)
-	cacheMutex.Unlock()
+	shard := cache.getShard(key)
+	shard.mutex.Lock()
+	delete(shard.items, key)
+	shard.mutex.Unlock()
 
 	if db != nil {
-		db.Exec("DELETE FROM cache WHERE key = ?", key)
+		select {
+		case dbChan <- dbJob{op: "DEL", key: key}:
+		default:
+			log.Printf("DB channel full, dropping delete for key: %s", key)
+		}
 	}
 
 	if broadcast {
@@ -499,12 +556,15 @@ func delLocal(key string, broadcast bool) {
 }
 
 func flushLocal(broadcast bool) {
-	cacheMutex.Lock()
-	cache = make(map[string]CacheItem)
-	cacheMutex.Unlock()
+	for i := 0; i < NumShards; i++ {
+		shard := cache.shards[i]
+		shard.mutex.Lock()
+		shard.items = make(map[string]CacheItem)
+		shard.mutex.Unlock()
+	}
 
 	if db != nil {
-		db.Exec("DELETE FROM cache")
+		dbChan <- dbJob{op: "FLUSH"}
 	}
 
 	if broadcast {
@@ -524,6 +584,7 @@ func loadFromSqlite() {
 	defer rows.Close()
 
 	count := 0
+	now := time.Now().Unix()
 	for rows.Next() {
 		var k string
 		var v []byte
@@ -533,13 +594,16 @@ func loadFromSqlite() {
 			if exp.Valid {
 				expiration = exp.Int64
 			}
-			if expiration == 0 || expiration > time.Now().Unix() {
-				cache[k] = CacheItem{Value: v, Expiration: expiration}
+			if expiration == 0 || expiration > now {
+				shard := cache.getShard(k)
+				shard.mutex.Lock()
+				shard.items[k] = CacheItem{Value: v, Expiration: expiration}
+				shard.mutex.Unlock()
 				count++
 			}
 		}
 	}
-	log.Printf("Loaded %d items from SQLite persistence", count)
+	log.Printf("Loaded %d items from SQLite persistence into shards", count)
 }
 
 func startCleanupTimer() {
@@ -553,23 +617,58 @@ func startCleanupTimer() {
 
 func cleanupExpired() {
 	now := time.Now().Unix()
-	count := 0
+	totalCount := 0
 	
-	cacheMutex.Lock()
-	for k, v := range cache {
-		if v.Expiration > 0 && v.Expiration < now {
-			delete(cache, k)
-			count++
+	for i := 0; i < NumShards; i++ {
+		shard := cache.shards[i]
+		shard.mutex.Lock()
+		for k, v := range shard.items {
+			if v.Expiration > 0 && v.Expiration < now {
+				delete(shard.items, k)
+				totalCount++
+			}
+		}
+		shard.mutex.Unlock()
+	}
+
+	if totalCount > 0 {
+		log.Printf("Background cleanup: removed %d expired items across all shards", totalCount)
+		if db != nil {
+			select {
+			case dbChan <- dbJob{op: "CLEANUP", exp: now}:
+			default:
+			}
 		}
 	}
-	cacheMutex.Unlock()
+}
 
-	if count > 0 {
-		log.Printf("Background cleanup: removed %d expired items", count)
-		if db != nil {
-			_, err := db.Exec("DELETE FROM cache WHERE expiration > 0 AND expiration < ?", now)
+func startDbWorker() {
+	log.Printf("Starting background persistence worker...")
+	for job := range dbChan {
+		switch job.op {
+		case "SET":
+			var exp interface{}
+			if job.exp > 0 {
+				exp = job.exp
+			}
+			_, err := db.Exec("REPLACE INTO cache(key, value, expiration) VALUES(?, ?, ?)", job.key, job.val, exp)
 			if err != nil {
-				log.Printf("Failed to cleanup SQLite expired items: %v", err)
+				log.Printf("DB SET error: %v", err)
+			}
+		case "DEL":
+			_, err := db.Exec("DELETE FROM cache WHERE key = ?", job.key)
+			if err != nil {
+				log.Printf("DB DEL error: %v", err)
+			}
+		case "FLUSH":
+			_, err := db.Exec("DELETE FROM cache")
+			if err != nil {
+				log.Printf("DB FLUSH error: %v", err)
+			}
+		case "CLEANUP":
+			_, err := db.Exec("DELETE FROM cache WHERE expiration > 0 AND expiration < ?", job.exp)
+			if err != nil {
+				log.Printf("DB CLEANUP error: %v", err)
 			}
 		}
 	}
@@ -652,13 +751,13 @@ func handleAdd(w http.ResponseWriter, r *http.Request) {
 	var payload Payload
 	json.Unmarshal(body, &payload)
 
-	// Atomic Check-and-Set using Mutex
-	cacheMutex.Lock()
-	item, ok := cache[key]
+	shard := cache.getShard(key)
+	shard.mutex.Lock()
+	item, ok := shard.items[key]
 	exists := ok && (item.Expiration == 0 || item.Expiration > time.Now().Unix())
 
 	if exists {
-		cacheMutex.Unlock()
+		shard.mutex.Unlock()
 		writeJSON(w, map[string]bool{"added": false})
 		return
 	}
@@ -669,17 +768,15 @@ func handleAdd(w http.ResponseWriter, r *http.Request) {
 	}
 
 	encoded, _ := php_serialize.Serialize(payload.Value)
-	// We are still holding the lock, so we can set it safely.
-	cache[key] = CacheItem{Value: []byte(encoded), Expiration: expiration}
-	cacheMutex.Unlock()
+	shard.items[key] = CacheItem{Value: []byte(encoded), Expiration: expiration}
+	shard.mutex.Unlock()
 
-	// Persistence and Broadcast (outside the lock for performance)
+	// Persistence and Broadcast
 	if db != nil {
-		var exp interface{}
-		if expiration > 0 {
-			exp = expiration
+		select {
+		case dbChan <- dbJob{op: "SET", key: key, val: []byte(encoded), exp: expiration}:
+		default:
 		}
-		db.Exec("REPLACE INTO cache(key, value, expiration) VALUES(?, ?, ?)", key, encoded, exp)
 	}
 	broadcastSet(key, []byte(encoded), expiration)
 
@@ -695,18 +792,16 @@ func handleLock(w http.ResponseWriter, r *http.Request) {
 		var payload Payload
 		json.Unmarshal(body, &payload)
 
-		// Atomic Lock Acquisition
-		cacheMutex.Lock()
-		item, exists := cache[key]
+		shard := cache.getShard(key)
+		shard.mutex.Lock()
+		item, exists := shard.items[key]
 		if exists && (item.Expiration == 0 || item.Expiration > time.Now().Unix()) {
-			// Check if same owner
 			if string(item.Value) == payload.Owner {
-				// Extend TTL if needed? Laravel usually doesn't re-acquire to extend within the same request
-				cacheMutex.Unlock()
+				shard.mutex.Unlock()
 				writeJSON(w, map[string]bool{"acquired": true})
 				return
 			}
-			cacheMutex.Unlock()
+			shard.mutex.Unlock()
 			writeJSON(w, map[string]bool{"acquired": false})
 			return
 		}
@@ -715,10 +810,9 @@ func handleLock(w http.ResponseWriter, r *http.Request) {
 		if payload.TTL != nil && *payload.TTL > 0 {
 			expiration = time.Now().Unix() + int64(*payload.TTL)
 		}
-		cache[key] = CacheItem{Value: []byte(payload.Owner), Expiration: expiration}
-		cacheMutex.Unlock()
+		shard.items[key] = CacheItem{Value: []byte(payload.Owner), Expiration: expiration}
+		shard.mutex.Unlock()
 
-		// Broadcast
 		broadcastSet(key, []byte(payload.Owner), expiration)
 		writeJSON(w, map[string]bool{"acquired": true})
 
@@ -727,16 +821,17 @@ func handleLock(w http.ResponseWriter, r *http.Request) {
 		var payload Payload
 		json.Unmarshal(body, &payload)
 
-		cacheMutex.Lock()
-		item, exists := cache[key]
+		shard := cache.getShard(key)
+		shard.mutex.Lock()
+		item, exists := shard.items[key]
 		if exists && string(item.Value) == payload.Owner {
-			delete(cache, key)
-			cacheMutex.Unlock()
+			delete(shard.items, key)
+			shard.mutex.Unlock()
 			broadcastDel(key)
 			writeJSON(w, map[string]bool{"released": true})
 			return
 		}
-		cacheMutex.Unlock()
+		shard.mutex.Unlock()
 		writeJSON(w, map[string]bool{"released": false})
 	}
 }
@@ -760,13 +855,21 @@ func handlePing(w http.ResponseWriter, r *http.Request) {
 	currentStats := stats
 	statsMutex.Unlock()
 
+	totalItems := 0
+	for i := 0; i < NumShards; i++ {
+		shard := cache.shards[i]
+		shard.mutex.RLock()
+		totalItems += len(shard.items)
+		shard.mutex.RUnlock()
+	}
+
 	writeJSON(w, map[string]interface{}{
 		"message":          "pong",
 		"role":             role,
 		"hostname":         hostName,
 		"time":             time.Now().Unix(),
 		"peers":            peerList,
-		"items_count":      len(cache),
+		"items_count":      totalItems,
 		"ha_mode":          haMode,
 		"replication_port": replPort,
 		"stats":            currentStats,
@@ -774,9 +877,6 @@ func handlePing(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleItems(w http.ResponseWriter, r *http.Request) {
-	cacheMutex.RLock()
-	defer cacheMutex.RUnlock()
-
 	type Item struct {
 		Key        string      `json:"key"`
 		Value      interface{} `json:"value"`
@@ -784,35 +884,39 @@ func handleItems(w http.ResponseWriter, r *http.Request) {
 		IsLock     bool        `json:"is_lock"`
 	}
 
-	items := make([]Item, 0, len(cache))
+	items := make([]Item, 0)
 	now := time.Now().Unix()
 	
-	for k, v := range cache {
-		if v.Expiration > 0 && v.Expiration < now {
-			continue
-		}
-		
-		isLock := strings.HasPrefix(k, "lock:")
-
-		var parsedValue interface{}
-		if isLock {
-			parsedValue = string(v.Value)
-		} else {
-			decoder := php_serialize.NewUnSerializer(string(v.Value))
-			parsed, err := decoder.Decode()
-			if err == nil {
-				parsedValue = parsed
-			} else {
-				parsedValue = "[Binary Data]"
+	for i := 0; i < NumShards; i++ {
+		shard := cache.shards[i]
+		shard.mutex.RLock()
+		for k, v := range shard.items {
+			if v.Expiration > 0 && v.Expiration < now {
+				continue
 			}
-		}
+			
+			isLock := strings.HasPrefix(k, "lock:")
+			var parsedValue interface{}
+			if isLock {
+				parsedValue = string(v.Value)
+			} else {
+				decoder := php_serialize.NewUnSerializer(string(v.Value))
+				parsed, err := decoder.Decode()
+				if err == nil {
+					parsedValue = parsed
+				} else {
+					parsedValue = "[Binary Data]"
+				}
+			}
 
-		items = append(items, Item{
-			Key:        k,
-			Value:      parsedValue,
-			Expiration: v.Expiration,
-			IsLock:     isLock,
-		})
+			items = append(items, Item{
+				Key:        k,
+				Value:      parsedValue,
+				Expiration: v.Expiration,
+				IsLock:     isLock,
+			})
+		}
+		shard.mutex.RUnlock()
 	}
 
 	writeJSON(w, items)

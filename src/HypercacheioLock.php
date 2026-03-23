@@ -9,14 +9,14 @@ class HypercacheioLock extends Lock
     /**
      * The Hypercacheio store instance.
      *
-     * @var \Iperamuna\Hypercacheio\HypercacheioStore
+     * @var HypercacheioStore
      */
     protected $store;
 
     /**
      * Create a new lock instance.
      *
-     * @param  \Iperamuna\Hypercacheio\HypercacheioStore  $store
+     * @param  HypercacheioStore  $store
      * @param  string  $name
      * @param  int  $seconds
      * @param  string|null  $owner

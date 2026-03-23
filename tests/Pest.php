@@ -1,6 +1,8 @@
 <?php
 
-uses(\Iperamuna\Hypercacheio\Tests\TestCase::class)->in(__DIR__);
+use Iperamuna\Hypercacheio\Tests\TestCase;
+
+uses(TestCase::class)->in(__DIR__);
 
 /*
 |--------------------------------------------------------------------------

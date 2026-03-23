@@ -40,7 +40,7 @@ func setupTestDB(t *testing.T) (*sql.DB, func()) {
 	// Override the global db variable in main.go
 	db = tDB
 	cachePrefix = "test_prefix:"
-	cache = make(map[string]CacheItem)
+	cache = newShardedCache()
 
 	cleanup := func() {
 		tDB.Close()
@@ -182,31 +182,54 @@ func TestCleanupExpired(t *testing.T) {
 
 	now := time.Now().Unix()
 
-	cacheMutex.Lock()
 	// Item 1: Not expired
-	cache["valid"] = CacheItem{Value: []byte("value"), Expiration: now + 60}
-	// Item 2: Expired
-	cache["expired"] = CacheItem{Value: []byte("value"), Expiration: now - 60}
-	// Item 3: No expiration
-	cache["permanent"] = CacheItem{Value: []byte("value"), Expiration: 0}
-	cacheMutex.Unlock()
+	sh1 := cache.getShard("valid")
+	sh1.mutex.Lock()
+	sh1.items["valid"] = CacheItem{Value: []byte("value"), Expiration: now + 60}
+	sh1.mutex.Unlock()
 
-	// Initial count
-	if len(cache) != 3 {
-		t.Errorf("Expected 3 items, got %d", len(cache))
+	// Item 2: Expired
+	sh2 := cache.getShard("expired")
+	sh2.mutex.Lock()
+	sh2.items["expired"] = CacheItem{Value: []byte("value"), Expiration: now - 60}
+	sh2.mutex.Unlock()
+
+	// Item 3: No expiration
+	sh3 := cache.getShard("permanent")
+	sh3.mutex.Lock()
+	sh3.items["permanent"] = CacheItem{Value: []byte("value"), Expiration: 0}
+	sh3.mutex.Unlock()
+
+	// Initial lookup to verify items exist
+	count := 0
+	for _, shard := range cache.shards {
+		shard.mutex.RLock()
+		count += len(shard.items)
+		shard.mutex.RUnlock()
+	}
+	if count != 3 {
+		t.Errorf("Expected 3 items, got %d", count)
 	}
 
 	cleanupExpired()
 
-	if len(cache) != 2 {
-		t.Errorf("Expected 2 items after cleanup, got %d", len(cache))
+	count = 0
+	for _, shard := range cache.shards {
+		shard.mutex.RLock()
+		count += len(shard.items)
+		shard.mutex.RUnlock()
+	}
+	if count != 2 {
+		t.Errorf("Expected 2 items after cleanup, got %d", count)
 	}
 
-	cacheMutex.RLock()
-	if _, exists := cache["expired"]; exists {
+	// Verify specific item
+	shard := cache.getShard("expired")
+	shard.mutex.RLock()
+	if _, exists := shard.items["expired"]; exists {
 		t.Errorf("Expired item still exists in cache")
 	}
-	cacheMutex.RUnlock()
+	shard.mutex.RUnlock()
 }
 
 func TestHandleItemsFiltering(t *testing.T) {
@@ -215,10 +238,15 @@ func TestHandleItemsFiltering(t *testing.T) {
 
 	now := time.Now().Unix()
 
-	cacheMutex.Lock()
-	cache["valid"] = CacheItem{Value: []byte("s:5:\"value\";"), Expiration: now + 60}
-	cache["expired"] = CacheItem{Value: []byte("s:5:\"value\";"), Expiration: now - 60}
-	cacheMutex.Unlock()
+	sh1 := cache.getShard("valid")
+	sh1.mutex.Lock()
+	sh1.items["valid"] = CacheItem{Value: []byte("s:5:\"value\";"), Expiration: now + 60}
+	sh1.mutex.Unlock()
+
+	sh2 := cache.getShard("expired")
+	sh2.mutex.Lock()
+	sh2.items["expired"] = CacheItem{Value: []byte("s:5:\"value\";"), Expiration: now - 60}
+	sh2.mutex.Unlock()
 
 	req, _ := http.NewRequest("GET", "/api/hypercacheio/items", nil)
 	rr := httptest.NewRecorder()

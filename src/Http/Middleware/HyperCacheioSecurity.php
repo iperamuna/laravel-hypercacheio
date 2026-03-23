@@ -3,6 +3,7 @@
 namespace Iperamuna\Hypercacheio\Http\Middleware;
 
 use Closure;
+use Illuminate\Http\Request;
 
 /**
  * Middleware to secure Hypercacheio internal API endpoints.
@@ -12,7 +13,7 @@ class HyperCacheioSecurity
     /**
      * Handle an incoming request.
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param  Request  $request
      * @return mixed
      */
     public function handle($request, Closure $next)
