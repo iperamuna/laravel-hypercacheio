@@ -80,6 +80,19 @@ class HypercacheioService
     }
 
     /**
+     * Set the expiration of a cached item.
+     */
+    public function touch($key, $ttl)
+    {
+        $expiration = $ttl ? time() + (int) $ttl : null;
+
+        $stmt = $this->sqlite->prepare('UPDATE cache SET expiration=:exp WHERE key=:key');
+        $stmt->execute([':key' => $key, ':exp' => $expiration]);
+
+        return $stmt->rowCount() > 0;
+    }
+
+    /**
      * Remove an item from the cache.
      */
     public function forget($key)

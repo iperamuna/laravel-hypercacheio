@@ -11,6 +11,7 @@ Route::prefix(config('hypercacheio.api_url'))
         Route::get('/cache/{key}', [CacheController::class, 'get'])->name('cache.get');
         Route::post('/add/{key}', [CacheController::class, 'add'])->name('cache.add');
         Route::post('/cache/{key}', [CacheController::class, 'put'])->name('cache.put');
+        Route::post('/touch/{key}', [CacheController::class, 'touch'])->name('cache.touch');
         Route::delete('/cache/{key}', [CacheController::class, 'forget'])->name('cache.forget');
         Route::post('/lock/{key}', [CacheController::class, 'lock'])->name('cache.lock');
         Route::delete('/lock/{key}', [CacheController::class, 'releaseLock'])->name('cache.release-lock');

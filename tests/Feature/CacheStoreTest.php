@@ -46,6 +46,13 @@ it('performs primary role operations correctly', function () {
     $val = Cache::store('hypercacheio')->get('key1');
     expect($val)->toBe('value1');
 
+    // Touch -> Update Expiration
+    $touched = Cache::store('hypercacheio')->touch('key1', 120);
+    expect($touched)->toBeTrue();
+
+    $touchedNonExistent = Cache::store('hypercacheio')->touch('non_existent', 120);
+    expect($touchedNonExistent)->toBeFalse();
+
     // Add -> Atomic Insert
     $added = Cache::store('hypercacheio')->add('key2', 'val2', 60);
     expect($added)->toBeTrue();
@@ -83,6 +90,7 @@ it('performs secondary role operations correctly via HTTP', function () {
         '*/api/hypercacheio/cache/key_sec' => Http::response(json_encode(['data' => 'value_sec']), 200),
         '*/api/hypercacheio/cache/*' => Http::response(['success' => true], 200),
         '*/api/hypercacheio/add/*' => Http::response(['added' => true], 200),
+        '*/api/hypercacheio/touch/*' => Http::response(['touched' => true], 200),
     ]);
 
     $store = Cache::store('hypercacheio')->getStore();
@@ -104,5 +112,13 @@ it('performs secondary role operations correctly via HTTP', function () {
 
     Http::assertSent(function ($request) {
         return str_contains($request->url(), '/add/key_add') && $request->method() === 'POST';
+    });
+
+    // Touch -> HTTP Post
+    $touched = Cache::store('hypercacheio')->touch('key_touch', 120);
+    expect($touched)->toBeTrue();
+
+    Http::assertSent(function ($request) {
+        return str_contains($request->url(), '/touch/key_touch') && $request->method() === 'POST';
     });
 });

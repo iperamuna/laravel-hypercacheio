@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.0] - 2026-07-11
+
+### Added
+- **Laravel 13 Support**: Implemented the new `touch()` method in `HypercacheioStore` to extend cache Time-To-Live (TTL) without fetching or re-storing values, fulfilling the updated `Illuminate\Contracts\Cache\Store` contract.
+- **Go Server Touch Endpoint**: Added a new `/api/hypercacheio/touch/{key}` HTTP API endpoint to the standalone Go server daemon.
+- **Dependency Upgrades**: Added support for Laravel 13, Testbench 11, and Pest 4.
+
 ## [1.7.0] - 2026-03-23
 
 ### Added

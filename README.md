@@ -20,7 +20,7 @@ Designed for modern PHP environments like **FrankenPHP**, **Swoole**, and tradit
 - **🔄 Active-Active HA Mode**: Fully synchronized multi-node clusters using binary TCP replication.
 - **🛡️ Service Management**: Built-in support for running as a systemd (Linux) or launchd (macOS) service.
 - **🔒 Distributed Locking**: Full support for atomic locks across multiple servers.
-- **✅ Modern Compatibility**: Fully supports Laravel 10.x, 11.x, and 12.0.
+- **✅ Modern Compatibility**: Fully supports Laravel 10.x, 11.x, 12.0, and 13.0.
 
 ---
 
@@ -274,6 +274,7 @@ The package exposes a lightweight internal API for node synchronization. Each en
 | `GET` | `/api/hypercacheio/cache/{key}` | Fetch a cached item |
 | `POST` | `/api/hypercacheio/cache/{key}` | Upsert (Create/Update) an item |
 | `POST` | `/api/hypercacheio/add/{key}` | Atomic "Add" operation |
+| `POST` | `/api/hypercacheio/touch/{key}` | Set the expiration of a cached item |
 | `DELETE` | `/api/hypercacheio/cache/{key}` | Remove an item |
 | `POST` | `/api/hypercacheio/lock/{key}` | Acquire an atomic lock |
 | `DELETE` | `/api/hypercacheio/lock/{key}` | Release an atomic lock |

@@ -202,6 +202,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/hypercacheio/cache/", handleCache)
 	mux.HandleFunc("/api/hypercacheio/add/", handleAdd)
+	mux.HandleFunc("/api/hypercacheio/touch/", handleTouch)
 	mux.HandleFunc("/api/hypercacheio/lock/", handleLock)
 	mux.HandleFunc("/api/hypercacheio/ping", handlePing)
 	mux.HandleFunc("/api/hypercacheio/items", handleItems)
@@ -781,6 +782,46 @@ func handleAdd(w http.ResponseWriter, r *http.Request) {
 	broadcastSet(key, []byte(encoded), expiration)
 
 	writeJSON(w, map[string]bool{"added": true})
+}
+
+func handleTouch(w http.ResponseWriter, r *http.Request) {
+	key := strings.TrimPrefix(r.URL.Path, "/api/hypercacheio/touch/")
+	body, _ := io.ReadAll(r.Body)
+	var payload Payload
+	json.Unmarshal(body, &payload)
+
+	if payload.TTL == nil {
+		http.Error(w, "TTL required", http.StatusBadRequest)
+		return
+	}
+
+	shard := cache.getShard(key)
+	shard.mutex.Lock()
+	item, ok := shard.items[key]
+	if !ok || (item.Expiration > 0 && item.Expiration < time.Now().Unix()) {
+		shard.mutex.Unlock()
+		writeJSON(w, map[string]bool{"touched": false})
+		return
+	}
+
+	var expiration int64
+	if *payload.TTL > 0 {
+		expiration = time.Now().Unix() + int64(*payload.TTL)
+	}
+	item.Expiration = expiration
+	shard.items[key] = item
+	shard.mutex.Unlock()
+
+	// Persistence and Broadcast
+	if db != nil {
+		select {
+		case dbChan <- dbJob{op: "SET", key: key, val: item.Value, exp: expiration}:
+		default:
+		}
+	}
+	broadcastSet(key, item.Value, expiration)
+
+	writeJSON(w, map[string]bool{"touched": true})
 }
 
 func handleLock(w http.ResponseWriter, r *http.Request) {

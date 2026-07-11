@@ -58,6 +58,19 @@ class CacheController extends Controller
     }
 
     /**
+     * Set the expiration of a cached item.
+     */
+    public function touch(Request $request, $key)
+    {
+        $touched = $this->service->touch(
+            $key,
+            $request->input('ttl')
+        );
+
+        return response()->json(['touched' => $touched]);
+    }
+
+    /**
      * Remove an item from the cache.
      */
     public function forget($key)

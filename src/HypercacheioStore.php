@@ -200,6 +200,22 @@ class HypercacheioStore implements LockProvider, Store
         }
     }
 
+    public function touch($key, $seconds)
+    {
+        $expiration = $seconds ? time() + (int) $seconds : null;
+
+        if ($this->role === 'primary' && ! $this->haMode) {
+            $stmt = $this->sqlite->prepare('UPDATE cache SET expiration=:exp WHERE key=:key');
+            $stmt->execute([':key' => $key, ':exp' => $expiration]);
+
+            return $stmt->rowCount() > 0;
+        } else {
+            $response = $this->doRequest('post', "touch/{$key}", ['ttl' => $seconds], true);
+
+            return $response['touched'] ?? false;
+        }
+    }
+
     public function add($key, $value, $seconds)
     {
         $expiration = $seconds ? time() + (int) $seconds : null;
