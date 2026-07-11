@@ -13,7 +13,7 @@ beforeEach(function () {
 
     config(['hypercacheio.go_server.build_path' => $binDir]);
     config(['hypercacheio.go_server.listen_host' => '0.0.0.0']);
-    
+
     $pidPath = $binDir.'/hypercacheio-server-test.pid';
     if (File::exists($pidPath)) {
         File::delete($pidPath);
