@@ -214,6 +214,9 @@ php artisan hypercacheio:go-server service:restart # Cycle the service
 php artisan hypercacheio:go-server service:stop    # Stop the service
 php artisan hypercacheio:go-server service:status  # View service status (systemd/launchd output)
 php artisan hypercacheio:go-server service:remove  # Disable and remove the service
+
+# Safely update the Go server binary in production (e.g. after composer install/update)
+php artisan hypercacheio:service-update
 ```
 
 ---
