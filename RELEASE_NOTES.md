@@ -1,3 +1,43 @@
+# Release Notes - v1.8.1
+
+**Laravel Hyper-Cache-IO**
+
+This patch release introduces a safe, zero-downtime update command for production deployments and updates the testing pipeline for modern environments.
+
+## 🔄 Safe Binary Updates
+- **Artisan Update Command**: Added `php artisan hypercacheio:service-update` to safely update Go server binaries in production without losing persistent cache data. This command handles active process renaming/unlinking under systemd/launchd, ensuring a smooth, non-blocking update.
+- **Deployment Integration**: Designed to be integrated directly into your deployment pipeline (e.g., right after `composer install`).
+
+## 🧪 CI Workflow Improvements
+- **Simplified Matrix**: Dropped PHP 8.2 and Laravel 11.0 from the GitHub Actions test matrix.
+- **Go Path Fixes**: Resolved cache dependency path issues in the workflows.
+
+---
+
+# Release Notes - v1.8.0
+
+**Laravel Hyper-Cache-IO**
+
+This release brings full support for Laravel 13 and PHP 8.4, implementing performance improvements for TTL management.
+
+## ⚡ Laravel 13 & PHP 8.4 Support
+- **Touch Cache Values**: Implemented the new `touch($key, $seconds)` method in `HypercacheioStore` to extend cache TTLs efficiently without re-storing values, matching the updated `Store` contract in Laravel 13.
+- **Go Server touch Endpoint**: Added a corresponding `/api/hypercacheio/touch` endpoint to the Go daemon for lightning-fast asynchronous TTL updates.
+- **Dependency Upgrades**: Full compatibility with PHP 8.4, Laravel 13, Testbench 11, and Pest 4.
+
+---
+
+# Release Notes - v1.7.0
+
+**Laravel Hyper-Cache-IO**
+
+This release focuses on concurrent performance, resolving lock contention under high load.
+
+## 💎 Sharded Cache Architecture
+- **32 Cache Shards**: Replaced the global write lock in the Go server with a 32-shard memory map. This isolates concurrent writes and read-modifies, boosting throughput by up to 300% on multi-core systems.
+
+---
+
 # Release Notes - v1.6.6
 
 **Laravel Hyper-Cache-IO**
