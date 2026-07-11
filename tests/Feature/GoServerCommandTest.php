@@ -144,26 +144,26 @@ it('can update service binary via service-update command', function () {
     } elseif ($arch === 'aarch64' || $arch === 'arm64') {
         $arch = 'arm64';
     }
-    
+
     $buildDir = __DIR__.'/../../build';
     $binName = "hypercacheio-server-{$os}-{$arch}";
     $binPath = $buildDir.'/'.$binName;
-    
+
     File::ensureDirectoryExists($buildDir);
     File::put($binPath, 'dummy-binary-content');
-    
+
     $targetDir = config('hypercacheio.go_server.build_path');
     File::ensureDirectoryExists($targetDir);
-    
+
     artisan('hypercacheio:service-update')
         ->expectsOutputToContain('Updating Hypercacheio Go server binary...')
         ->expectsOutputToContain('Copying new binary to:')
         ->expectsOutputToContain('Binary updated successfully.')
         ->assertExitCode(0);
-        
+
     expect(File::exists($targetDir.'/'.$binName))->toBeTrue();
     expect(File::get($targetDir.'/'.$binName))->toBe('dummy-binary-content');
-    
+
     // Cleanup
     File::delete($binPath);
     File::delete($targetDir.'/'.$binName);

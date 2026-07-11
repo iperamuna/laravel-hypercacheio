@@ -580,21 +580,22 @@ class GoServerCommand extends Command
         $binName = "hypercacheio-server-{$os}-{$arch}";
         $vendorBinPath = realpath(__DIR__.'/../../build/'.$binName);
 
-        if (!$vendorBinPath || !File::exists($vendorBinPath)) {
+        if (! $vendorBinPath || ! File::exists($vendorBinPath)) {
             $this->error("Pre-compiled binary for {$os}-{$arch} not found in package build directory.");
+
             return 1;
         }
 
         $targetDir = config('hypercacheio.go_server.build_path') ?? resource_path('hypercacheio/bin');
-        if (!File::exists($targetDir)) {
+        if (! File::exists($targetDir)) {
             File::makeDirectory($targetDir, 0755, true);
         }
         $targetBinPath = $targetDir.'/'.$binName;
 
-        $this->info("Copying new binary to: " . $targetBinPath);
+        $this->info('Copying new binary to: '.$targetBinPath);
 
         if (File::exists($targetBinPath)) {
-            $backupBinPath = $targetBinPath . '.bak';
+            $backupBinPath = $targetBinPath.'.bak';
             if (File::exists($backupBinPath)) {
                 File::delete($backupBinPath);
             }
@@ -611,7 +612,7 @@ class GoServerCommand extends Command
         $this->info('Binary updated successfully.');
 
         $this->info('Restarting Go server service/daemon to apply updates...');
-        
+
         $svcName = 'hypercacheio-server';
         if ($os === 'darwin') {
             $plist = getenv('HOME').'/Library/LaunchAgents/iperamuna.hypercacheio.server.plist';
@@ -628,7 +629,7 @@ class GoServerCommand extends Command
                 $this->restartArtisanManaged();
             }
         }
-        
+
         return 0;
     }
 
