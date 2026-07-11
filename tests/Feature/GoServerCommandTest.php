@@ -13,7 +13,12 @@ beforeEach(function () {
 
     config(['hypercacheio.go_server.build_path' => $binDir]);
     config(['hypercacheio.go_server.listen_host' => '0.0.0.0']);
-    config(['hypercacheio.go_server.pid_path' => storage_path('hypercacheio-server.pid')]);
+    
+    $pidPath = $binDir.'/hypercacheio-server-test.pid';
+    if (File::exists($pidPath)) {
+        File::delete($pidPath);
+    }
+    config(['hypercacheio.go_server.pid_path' => $pidPath]);
 });
 
 it('can show help for go-server command', function () {

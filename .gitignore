@@ -12,3 +12,4 @@ phpunit.xml
 iperamuna.hypercacheio.server.plist
 hypercacheio-server.service
 build/
+tests/bin/

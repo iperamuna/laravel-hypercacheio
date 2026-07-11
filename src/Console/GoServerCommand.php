@@ -580,36 +580,40 @@ class GoServerCommand extends Command
         $binName = "hypercacheio-server-{$os}-{$arch}";
         $vendorBinPath = realpath(__DIR__.'/../../build/'.$binName);
 
-        if (! $vendorBinPath || ! File::exists($vendorBinPath)) {
-            $this->error("Pre-compiled binary for {$os}-{$arch} not found in package build directory.");
-
-            return 1;
-        }
-
         $targetDir = config('hypercacheio.go_server.build_path') ?? resource_path('hypercacheio/bin');
         if (! File::exists($targetDir)) {
             File::makeDirectory($targetDir, 0755, true);
         }
         $targetBinPath = $targetDir.'/'.$binName;
 
-        $this->info('Copying new binary to: '.$targetBinPath);
+        if (! $vendorBinPath || ! File::exists($vendorBinPath)) {
+            if (File::exists($targetBinPath)) {
+                $this->warn("Pre-compiled binary for {$os}-{$arch} not found in package build directory, but already exists at target: $targetBinPath. Skipping copy and proceeding to restart.");
+            } else {
+                $this->error("Pre-compiled binary for {$os}-{$arch} not found in package build directory or target directory: {$targetBinPath}.");
 
-        if (File::exists($targetBinPath)) {
-            $backupBinPath = $targetBinPath.'.bak';
-            if (File::exists($backupBinPath)) {
-                File::delete($backupBinPath);
+                return 1;
             }
-            @rename($targetBinPath, $backupBinPath);
+        } else {
+            $this->info('Copying new binary to: '.$targetBinPath);
+
+            if (File::exists($targetBinPath)) {
+                $backupBinPath = $targetBinPath.'.bak';
+                if (File::exists($backupBinPath)) {
+                    File::delete($backupBinPath);
+                }
+                @rename($targetBinPath, $backupBinPath);
+            }
+
+            File::copy($vendorBinPath, $targetBinPath);
+            @chmod($targetBinPath, 0755);
+
+            if (isset($backupBinPath) && File::exists($backupBinPath)) {
+                @unlink($backupBinPath);
+            }
+
+            $this->info('Binary updated successfully.');
         }
-
-        File::copy($vendorBinPath, $targetBinPath);
-        @chmod($targetBinPath, 0755);
-
-        if (isset($backupBinPath) && File::exists($backupBinPath)) {
-            @unlink($backupBinPath);
-        }
-
-        $this->info('Binary updated successfully.');
 
         $this->info('Restarting Go server service/daemon to apply updates...');
 
