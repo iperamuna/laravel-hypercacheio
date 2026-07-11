@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.2] - 2026-07-11
+
+### Improved
+- **Service Update Binary Fallback**: Support executing `php artisan hypercacheio:service-update` even when the pre-compiled binary is missing in the package build directory, provided it already exists in the target build directory.
+
 ## [1.8.1] - 2026-07-11
 
 ### Added

@@ -1,3 +1,14 @@
+# Release Notes - v1.8.2
+
+**Laravel Hyper-Cache-IO**
+
+This patch release improves the resilience of the service-update command.
+
+## 🛠️ Service Update Command Fallback
+- **Target Binary Check**: Supports executing `php artisan hypercacheio:service-update` even if the pre-compiled binary is missing in the package build directory, provided it already exists in the target directory (e.g. `resource_path('hypercacheio/bin')`). This prevents deployment failures on servers where the pre-compiled binaries were not fetched or were stripped out, but the binary was previously deployed.
+
+---
+
 # Release Notes - v1.8.1
 
 **Laravel Hyper-Cache-IO**
