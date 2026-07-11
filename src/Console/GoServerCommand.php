@@ -12,7 +12,7 @@ class GoServerCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'hypercacheio:go-server {action : start|stop|restart|status|compile|make-service|service:start|service:stop|service:restart|service:remove|service:status}';
+    protected $signature = 'hypercacheio:go-server {action : start|stop|restart|status|compile|make-service|service:start|service:stop|service:restart|service:remove|service:status|service:update}';
 
     /**
      * The console command description.
@@ -62,6 +62,9 @@ class GoServerCommand extends Command
                 break;
             case 'service:status':
                 $this->serviceStatus();
+                break;
+            case 'service:update':
+                $this->serviceUpdate();
                 break;
             default:
                 $this->error('Unknown action: '.$action);
@@ -560,5 +563,79 @@ class GoServerCommand extends Command
             $this->line("<info>systemd status for '{$svcName}':</info>");
             passthru("sudo systemctl status $svcName --no-pager");
         }
+    }
+
+    protected function serviceUpdate()
+    {
+        $this->info('Updating Hypercacheio Go server binary...');
+
+        $os = strtolower(PHP_OS_FAMILY);
+        $arch = strtolower(php_uname('m'));
+        if ($arch === 'x86_64') {
+            $arch = 'amd64';
+        } elseif ($arch === 'aarch64' || $arch === 'arm64') {
+            $arch = 'arm64';
+        }
+
+        $binName = "hypercacheio-server-{$os}-{$arch}";
+        $vendorBinPath = realpath(__DIR__.'/../../build/'.$binName);
+
+        if (!$vendorBinPath || !File::exists($vendorBinPath)) {
+            $this->error("Pre-compiled binary for {$os}-{$arch} not found in package build directory.");
+            return 1;
+        }
+
+        $targetDir = config('hypercacheio.go_server.build_path') ?? resource_path('hypercacheio/bin');
+        if (!File::exists($targetDir)) {
+            File::makeDirectory($targetDir, 0755, true);
+        }
+        $targetBinPath = $targetDir.'/'.$binName;
+
+        $this->info("Copying new binary to: " . $targetBinPath);
+
+        if (File::exists($targetBinPath)) {
+            $backupBinPath = $targetBinPath . '.bak';
+            if (File::exists($backupBinPath)) {
+                File::delete($backupBinPath);
+            }
+            @rename($targetBinPath, $backupBinPath);
+        }
+
+        File::copy($vendorBinPath, $targetBinPath);
+        @chmod($targetBinPath, 0755);
+
+        if (isset($backupBinPath) && File::exists($backupBinPath)) {
+            @unlink($backupBinPath);
+        }
+
+        $this->info('Binary updated successfully.');
+
+        $this->info('Restarting Go server service/daemon to apply updates...');
+        
+        $svcName = 'hypercacheio-server';
+        if ($os === 'darwin') {
+            $plist = getenv('HOME').'/Library/LaunchAgents/iperamuna.hypercacheio.server.plist';
+            if (File::exists($plist)) {
+                $this->serviceRestart();
+            } else {
+                $this->restartArtisanManaged();
+            }
+        } else {
+            $output = shell_exec("systemctl is-enabled $svcName 2>/dev/null");
+            if (trim($output ?? '') === 'enabled') {
+                $this->serviceRestart();
+            } else {
+                $this->restartArtisanManaged();
+            }
+        }
+        
+        return 0;
+    }
+
+    protected function restartArtisanManaged()
+    {
+        $this->stop();
+        sleep(1);
+        $this->start();
     }
 }

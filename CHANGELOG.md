@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.1] - 2026-07-11
+
+### Added
+- **Service Update Command**: Added `php artisan hypercacheio:service-update` command to safely update Go server binaries in production without losing persistent cache data.
+- **CI Enhancements**: Updated GitHub Actions workflow to run on PHP 8.3/8.4 and Laravel 12/13.
+
 ## [1.8.0] - 2026-07-11
 
 ### Added

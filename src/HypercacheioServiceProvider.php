@@ -31,6 +31,7 @@ class HypercacheioServiceProvider extends ServiceProvider
                 Console\ConnectivityCheckCommand::class,
                 Console\ServerHandlerCommand::class,
                 Console\GoServerCommand::class,
+                Console\ServiceUpdateCommand::class,
             ]);
         }
 
