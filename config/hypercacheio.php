@@ -113,6 +113,28 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Hypercacheio Queue
+    |--------------------------------------------------------------------------
+    |
+    | This package includes a hyper-fast, in-memory, SQLite-persisted Queue
+    | Driver backed by the Go cluster.
+    |
+    | To use it, simply add the following to your application's config/queue.php
+    | inside the 'connections' array:
+    |
+    | 'hypercacheio' => [
+    |     'driver' => 'hypercacheio',
+    |     'queue' => 'default',
+    |     'retry_after' => 90,
+    |     'block_for' => null,
+    | ],
+    |
+    | Then set QUEUE_CONNECTION=hypercacheio in your .env file!
+    |
+    */
+
+    /*
+    |--------------------------------------------------------------------------
     | API Token (Shared Secret)
     |--------------------------------------------------------------------------
     |

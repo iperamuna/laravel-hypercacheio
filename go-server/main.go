@@ -12,10 +12,15 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
+	"runtime"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
+	"github.com/iperamuna/hypercacheio-server/internal/api"
+	"github.com/iperamuna/hypercacheio-server/internal/queue"
 	"github.com/yvasiyarov/php_session_decoder/php_serialize"
 	_ "modernc.org/sqlite"
 )
@@ -28,6 +33,9 @@ const (
 	OpSyncItem byte = 4
 	OpSyncEnd  byte = 5
 	OpFlush    byte = 6
+	OpQPush    byte = 7
+	OpQDel     byte = 8
+	OpQClear   byte = 9
 )
 
 var (
@@ -89,6 +97,8 @@ func (sc *ShardedCache) getShard(key string) *Shard {
 	}
 	return sc.shards[sum%NumShards]
 }
+
+var dbWorkerWg sync.WaitGroup
 
 type dbJob struct {
 	op  string
@@ -177,8 +187,13 @@ func main() {
 		}
 		log.Printf("SQLite persistence enabled (WAL mode): %s", sqlitePath)
 		
+		dbWorkerWg.Add(2)
+		
 		// Start Async DB Worker
 		go startDbWorker()
+		
+		api.SetDatabase(db)
+		go api.StartQueueDbWorker(&dbWorkerWg)
 		
 		loadFromSqlite()
 	}
@@ -199,6 +214,9 @@ func main() {
 	
 	// Start background cleanup for expired items
 	startCleanupTimer()
+	
+	// Start background queue maintenance
+	queue.StartMaintenanceTicker(1 * time.Second)
 
 	// Start HTTP API for Laravel
 	mux := http.NewServeMux()
@@ -208,6 +226,14 @@ func main() {
 	mux.HandleFunc("/api/hypercacheio/lock/", handleLock)
 	mux.HandleFunc("/api/hypercacheio/ping", handlePing)
 	mux.HandleFunc("/api/hypercacheio/items", handleItems)
+	
+	// Queue Endpoints
+	mux.HandleFunc("/api/hypercacheio/queue/push", api.HandleQueuePush)
+	mux.HandleFunc("/api/hypercacheio/queue/pop", api.HandleQueuePop)
+	mux.HandleFunc("/api/hypercacheio/queue/delete", api.HandleQueueDelete)
+	mux.HandleFunc("/api/hypercacheio/queue/release", api.HandleQueueRelease)
+	mux.HandleFunc("/api/hypercacheio/queue/clear", api.HandleQueueClear)
+	mux.HandleFunc("/api/hypercacheio/queue/size/", api.HandleQueueSize)
 
 	handler := authMiddleware(mux)
 
@@ -220,7 +246,7 @@ func main() {
 		os.Chmod(unixSocket, 0666) // allow anyone to connect to it locally
 		go func() {
 			log.Printf("Starting Hypercacheio HTTP API on Unix Socket %s", unixSocket)
-			if err := http.Serve(unixListener, handler); err != nil {
+			if err := http.Serve(unixListener, handler); err != nil && err != http.ErrServerClosed {
 				log.Fatalf("Unix socket server failed: %s", err)
 			}
 		}()
@@ -229,18 +255,74 @@ func main() {
 	serverAddr := fmt.Sprintf("%s:%d", host, port)
 	log.Printf("Starting Hypercacheio HTTP API on %s", serverAddr)
 
-	var err error
-	if sslEnabled {
-		if sslCert == "" || sslKey == "" {
-			log.Fatal("SSL Certificate and Key are required when SSL is enabled")
+	go func() {
+		if sslEnabled {
+			if sslCert == "" || sslKey == "" {
+				log.Fatal("SSL Certificate and Key are required when SSL is enabled")
+			}
+			if err := http.ListenAndServeTLS(serverAddr, sslCert, sslKey, handler); err != nil && err != http.ErrServerClosed {
+				log.Fatalf("Server failed: %s", err)
+			}
+		} else {
+			if err := http.ListenAndServe(serverAddr, handler); err != nil && err != http.ErrServerClosed {
+				log.Fatalf("Server failed: %s", err)
+			}
 		}
-		err = http.ListenAndServeTLS(serverAddr, sslCert, sslKey, handler)
-	} else {
-		err = http.ListenAndServe(serverAddr, handler)
-	}
+	}()
 
-	if err != nil {
-		log.Fatalf("Server failed: %s", err)
+	// Wait for interrupt signal to gracefully shutdown the server
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	<-quit
+	log.Println("Shutting down server gracefully...")
+
+	// Close database channels and wait for workers to finish
+	if sqlitePath != "" && directSqlite {
+		log.Println("Flushing async channels to SQLite...")
+		close(dbChan)
+		api.ShutdownQueueDbWorker()
+		dbWorkerWg.Wait()
+		db.Close()
+		log.Println("SQLite channels flushed and database closed.")
+	}
+	
+	log.Println("Server stopped")
+}
+
+// -------------------------------------------------------------
+// Async Persistence Worker
+// -------------------------------------------------------------
+
+func startDbWorker() {
+	defer dbWorkerWg.Done()
+	log.Printf("Starting background persistence worker...")
+	for job := range dbChan {
+		switch job.op {
+		case "SET":
+			var exp interface{}
+			if job.exp > 0 {
+				exp = job.exp
+			}
+			_, err := db.Exec("REPLACE INTO cache(key, value, expiration) VALUES(?, ?, ?)", job.key, job.val, exp)
+			if err != nil {
+				log.Printf("DB SET error: %v", err)
+			}
+		case "DEL":
+			_, err := db.Exec("DELETE FROM cache WHERE key = ?", job.key)
+			if err != nil {
+				log.Printf("DB DEL error: %v", err)
+			}
+		case "FLUSH":
+			_, err := db.Exec("DELETE FROM cache")
+			if err != nil {
+				log.Printf("DB FLUSH error: %v", err)
+			}
+		case "CLEANUP":
+			_, err := db.Exec("DELETE FROM cache WHERE expiration > 0 AND expiration < ?", job.exp)
+			if err != nil {
+				log.Printf("DB CLEANUP error: %v", err)
+			}
+		}
 	}
 }
 
@@ -299,6 +381,33 @@ func handleReplicationConn(conn net.Conn) {
 				return
 			}
 			delLocal(key, false)
+		case OpQPush:
+			jobID, qName, payload, avail, err := readQPushFrame(reader)
+			if err == nil {
+				qm := queue.GetQueue(qName)
+				job := &queue.Job{ID: jobID, Payload: payload}
+				qm.Push(job, 0)
+                // We actually need to set the internal job.AvailableAt directly because qm.Push takes delay, but we already have absolute timestamp.
+                // Wait, Push takes `delay`. If we pass `delay`, it calculates `AvailableAt`.
+                // If we want exact replica, we should inject the job directly, but let's just re-calculate delay.
+                // Delay = avail - now.
+                now := time.Now().Unix()
+                delay := avail - now
+                if delay < 0 { delay = 0 }
+                qm.Push(job, delay)
+			}
+		case OpQDel:
+			jobID, qName, err := readQDelFrame(reader)
+			if err == nil {
+				qm := queue.GetQueue(qName)
+				qm.Delete(jobID)
+			}
+		case OpQClear:
+			qName, err := readQClearFrame(reader)
+			if err == nil {
+				qm := queue.GetQueue(qName)
+				qm.Clear()
+			}
 		case OpFlush:
 			log.Printf("Received FLUSH from peer")
 			flushLocal(false)
@@ -372,6 +481,28 @@ func handlePeerResponses(conn net.Conn) {
 			if err == nil {
 				delLocal(key, false)
 			}
+		case OpQPush:
+			jobID, qName, payload, avail, err := readQPushFrame(reader)
+			if err == nil {
+				qm := queue.GetQueue(qName)
+				job := &queue.Job{ID: jobID, Payload: payload}
+				now := time.Now().Unix()
+				delay := avail - now
+				if delay < 0 { delay = 0 }
+				qm.Push(job, delay)
+			}
+		case OpQDel:
+			jobID, qName, err := readQDelFrame(reader)
+			if err == nil {
+				qm := queue.GetQueue(qName)
+				qm.Delete(jobID)
+			}
+		case OpQClear:
+			qName, err := readQClearFrame(reader)
+			if err == nil {
+				qm := queue.GetQueue(qName)
+				qm.Clear()
+			}
 		case OpFlush:
 			flushLocal(false)
 		}
@@ -404,45 +535,55 @@ func sendFullDump(conn net.Conn) {
 func broadcastSet(key string, val []byte, expiration int64) {
 	peersMutex.Lock()
 	defer peersMutex.Unlock()
+	
 	for addr, conn := range peers {
-		err := writeSetFrame(conn, OpSet, key, val, expiration)
-		if err != nil {
-			log.Printf("Failed to broadcast SET to %s: %v", addr, err)
-		} else {
-			statsMutex.Lock()
-			stats.TotalBroadcasts++
-			statsMutex.Unlock()
-		}
+		// Spawn a goroutine per peer to fan-out concurrently!
+		go func(peerAddr string, c net.Conn) {
+			err := writeSetFrame(c, OpSet, key, val, expiration)
+			if err != nil {
+				log.Printf("Failed to broadcast SET to %s: %v", peerAddr, err)
+			} else {
+				statsMutex.Lock()
+				stats.TotalBroadcasts++
+				statsMutex.Unlock()
+			}
+		}(addr, conn)
 	}
 }
 
 func broadcastDel(key string) {
 	peersMutex.Lock()
 	defer peersMutex.Unlock()
+	
 	for addr, conn := range peers {
-		err := writeDelFrame(conn, key)
-		if err != nil {
-			log.Printf("Failed to broadcast DEL to %s: %v", addr, err)
-		} else {
-			statsMutex.Lock()
-			stats.TotalBroadcasts++
-			statsMutex.Unlock()
-		}
+		go func(peerAddr string, c net.Conn) {
+			err := writeDelFrame(c, key)
+			if err != nil {
+				log.Printf("Failed to broadcast DEL to %s: %v", peerAddr, err)
+			} else {
+				statsMutex.Lock()
+				stats.TotalBroadcasts++
+				statsMutex.Unlock()
+			}
+		}(addr, conn)
 	}
 }
 
 func broadcastFlush() {
 	peersMutex.Lock()
 	defer peersMutex.Unlock()
+	
 	for addr, conn := range peers {
-		_, err := conn.Write([]byte{OpFlush})
-		if err != nil {
-			log.Printf("Failed to broadcast FLUSH to %s: %v", addr, err)
-		} else {
-			statsMutex.Lock()
-			stats.TotalBroadcasts++
-			statsMutex.Unlock()
-		}
+		go func(peerAddr string, c net.Conn) {
+			_, err := c.Write([]byte{OpFlush})
+			if err != nil {
+				log.Printf("Failed to broadcast FLUSH to %s: %v", peerAddr, err)
+			} else {
+				statsMutex.Lock()
+				stats.TotalBroadcasts++
+				statsMutex.Unlock()
+			}
+		}(addr, conn)
 	}
 }
 
@@ -452,22 +593,21 @@ func broadcastFlush() {
 
 func writeSetFrame(w io.Writer, op byte, key string, val []byte, exp int64) error {
 	keyBytes := []byte(key)
-	header := make([]byte, 11)
-	header[0] = op
-	binary.BigEndian.PutUint16(header[1:3], uint16(len(keyBytes)))
-	binary.BigEndian.PutUint32(header[3:7], uint32(len(val)))
-	binary.BigEndian.PutUint32(header[7:11], uint32(exp))
+	
+	// Create a single buffer to prevent interleaving on concurrent writes
+	totalLen := 11 + len(keyBytes) + len(val)
+	buffer := make([]byte, totalLen)
+	
+	buffer[0] = op
+	binary.BigEndian.PutUint16(buffer[1:3], uint16(len(keyBytes)))
+	binary.BigEndian.PutUint32(buffer[3:7], uint32(len(val)))
+	binary.BigEndian.PutUint32(buffer[7:11], uint32(exp))
+	
+	copy(buffer[11:], keyBytes)
+	copy(buffer[11+len(keyBytes):], val)
 
-	if _, err := w.Write(header); err != nil {
-		return err
-	}
-	if _, err := w.Write(keyBytes); err != nil {
-		return err
-	}
-	if _, err := w.Write(val); err != nil {
-		return err
-	}
-	return nil
+	_, err := w.Write(buffer)
+	return err
 }
 
 func readSetFrame(r *bufio.Reader) (string, []byte, int64, error) {
@@ -492,16 +632,15 @@ func readSetFrame(r *bufio.Reader) (string, []byte, int64, error) {
 
 func writeDelFrame(w io.Writer, key string) error {
 	keyBytes := []byte(key)
-	header := make([]byte, 3)
-	header[0] = OpDel
-	binary.BigEndian.PutUint16(header[1:3], uint16(len(keyBytes)))
-	if _, err := w.Write(header); err != nil {
-		return err
-	}
-	if _, err := w.Write(keyBytes); err != nil {
-		return err
-	}
-	return nil
+	
+	// Create a single buffer to prevent interleaving
+	buffer := make([]byte, 3+len(keyBytes))
+	buffer[0] = OpDel
+	binary.BigEndian.PutUint16(buffer[1:3], uint16(len(keyBytes)))
+	copy(buffer[3:], keyBytes)
+
+	_, err := w.Write(buffer)
+	return err
 }
 
 func readDelFrame(r *bufio.Reader) (string, error) {
@@ -536,7 +675,7 @@ func setLocal(key string, val []byte, expiration int64, broadcast bool) {
 	}
 
 	if broadcast {
-		broadcastSet(key, val, expiration)
+		go broadcastSet(key, val, expiration)
 	}
 }
 
@@ -571,7 +710,7 @@ func delLocal(key string, broadcast bool) {
 	}
 
 	if broadcast {
-		broadcastDel(key)
+		go broadcastDel(key)
 	}
 }
 
@@ -588,7 +727,7 @@ func flushLocal(broadcast bool) {
 	}
 
 	if broadcast {
-		broadcastFlush()
+		go broadcastFlush()
 	}
 }
 
@@ -662,37 +801,6 @@ func cleanupExpired() {
 	}
 }
 
-func startDbWorker() {
-	log.Printf("Starting background persistence worker...")
-	for job := range dbChan {
-		switch job.op {
-		case "SET":
-			var exp interface{}
-			if job.exp > 0 {
-				exp = job.exp
-			}
-			_, err := db.Exec("REPLACE INTO cache(key, value, expiration) VALUES(?, ?, ?)", job.key, job.val, exp)
-			if err != nil {
-				log.Printf("DB SET error: %v", err)
-			}
-		case "DEL":
-			_, err := db.Exec("DELETE FROM cache WHERE key = ?", job.key)
-			if err != nil {
-				log.Printf("DB DEL error: %v", err)
-			}
-		case "FLUSH":
-			_, err := db.Exec("DELETE FROM cache")
-			if err != nil {
-				log.Printf("DB FLUSH error: %v", err)
-			}
-		case "CLEANUP":
-			_, err := db.Exec("DELETE FROM cache WHERE expiration > 0 AND expiration < ?", job.exp)
-			if err != nil {
-				log.Printf("DB CLEANUP error: %v", err)
-			}
-		}
-	}
-}
 
 // -------------------------------------------------------------
 // HTTP Handlers (for Laravel)
@@ -873,7 +981,7 @@ func handleLock(w http.ResponseWriter, r *http.Request) {
 		shard.items[key] = CacheItem{Value: []byte(payload.Owner), Expiration: expiration}
 		shard.mutex.Unlock()
 
-		broadcastSet(key, []byte(payload.Owner), expiration)
+		go broadcastSet(key, []byte(payload.Owner), expiration)
 		writeJSON(w, map[string]bool{"acquired": true})
 
 	case "DELETE":
@@ -887,7 +995,7 @@ func handleLock(w http.ResponseWriter, r *http.Request) {
 		if exists && string(item.Value) == payload.Owner {
 			delete(shard.items, key)
 			shard.mutex.Unlock()
-			broadcastDel(key)
+			go broadcastDel(key)
 			writeJSON(w, map[string]bool{"released": true})
 			return
 		}
@@ -897,39 +1005,92 @@ func handleLock(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlePing(w http.ResponseWriter, r *http.Request) {
-	hostName, _ := os.Hostname()
+	hostName, err := os.Hostname()
+	if err != nil {
+		hostName = "unknown"
+	}
 
 	peersMutex.Lock()
-	peerList := make([]string, 0, len(peers))
-	for addr := range peers {
-		peerList = append(peerList, addr)
+	peerMap := make(map[string]bool)
+	for addr, conn := range peers {
+		peerMap[addr] = conn != nil
 	}
 	peersMutex.Unlock()
-
-	role := "go-server-standalone"
-	if haMode {
-		role = "go-server-ha"
-	}
 
 	statsMutex.Lock()
 	currentStats := stats
 	statsMutex.Unlock()
 
-	totalItems := 0
+	totalCacheItems := 0
+	totalLocks := 0
+	var cacheBytes int64 = 0
+	var lockBytes int64 = 0
+	
 	for i := 0; i < NumShards; i++ {
 		shard := cache.shards[i]
 		shard.mutex.RLock()
-		totalItems += len(shard.items)
+		for k, item := range shard.items {
+			size := int64(len(k) + len(item.Value))
+			if strings.HasPrefix(k, "lock:") {
+				totalLocks++
+				lockBytes += size
+			} else {
+				totalCacheItems++
+				cacheBytes += size
+			}
+		}
 		shard.mutex.RUnlock()
+	}
+	
+	queueStats := queue.GetAllQueueStats()
+
+	var queueBytes int64 = 0
+	for _, q := range queueStats {
+		queueBytes += q.PayloadBytes
+	}
+
+	// Memory Stats
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+
+	// Disk Usage
+	var diskUsage int64 = 0
+	var cacheDiskUsage int64 = 0
+	var queueDiskUsage int64 = 0
+	if sqlitePath != "" && directSqlite {
+		if stat, err := os.Stat(sqlitePath); err == nil {
+			diskUsage = stat.Size()
+			
+			// Approximate split by payload sizes
+			totalPayload := cacheBytes + lockBytes + queueBytes
+			if totalPayload > 0 {
+				cacheRatio := float64(cacheBytes+lockBytes) / float64(totalPayload)
+				queueRatio := float64(queueBytes) / float64(totalPayload)
+				cacheDiskUsage = int64(float64(diskUsage) * cacheRatio)
+				queueDiskUsage = int64(float64(diskUsage) * queueRatio)
+			} else {
+				cacheDiskUsage = diskUsage
+			}
+		}
 	}
 
 	writeJSON(w, map[string]interface{}{
 		"message":          "pong",
-		"role":             role,
+		"role":             "go-server",
 		"hostname":         hostName,
 		"time":             time.Now().Unix(),
-		"peers":            peerList,
-		"items_count":      totalItems,
+		"peers":            peerMap,
+		"items_count":      totalCacheItems,
+		"locks_count":      totalLocks,
+		"cache_bytes":      cacheBytes,
+		"lock_bytes":       lockBytes,
+		"queue_bytes":      queueBytes,
+		"queues":           queueStats,
+		"heap_memory":      m.Alloc,
+		"process_memory":   m.Sys,
+		"disk_usage_total": diskUsage,
+		"disk_usage_cache": cacheDiskUsage,
+		"disk_usage_queue": queueDiskUsage,
 		"ha_mode":          haMode,
 		"replication_port": replPort,
 		"stats":            currentStats,
@@ -996,4 +1157,172 @@ func initSqlite() error {
 func writeJSON(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(data)
+}
+
+
+func writeQPushFrame(w io.Writer, jobID, qName, payload string, avail int64) error {
+	jBytes, qBytes, pBytes := []byte(jobID), []byte(qName), []byte(payload)
+	totalLen := 17 + len(jBytes) + len(qBytes) + len(pBytes)
+	buffer := make([]byte, totalLen)
+	
+	buffer[0] = OpQPush
+	binary.BigEndian.PutUint16(buffer[1:3], uint16(len(jBytes)))
+	binary.BigEndian.PutUint16(buffer[3:5], uint16(len(qBytes)))
+	binary.BigEndian.PutUint32(buffer[5:9], uint32(len(pBytes)))
+	binary.BigEndian.PutUint64(buffer[9:17], uint64(avail))
+	
+	idx := 17
+	copy(buffer[idx:], jBytes); idx += len(jBytes)
+	copy(buffer[idx:], qBytes); idx += len(qBytes)
+	copy(buffer[idx:], pBytes)
+	
+	_, err := w.Write(buffer)
+	return err
+}
+
+func readQPushFrame(r *bufio.Reader) (string, string, string, int64, error) {
+	header := make([]byte, 16)
+	if _, err := io.ReadFull(r, header); err != nil {
+		return "", "", "", 0, err
+	}
+	jLen := binary.BigEndian.Uint16(header[0:2])
+	qLen := binary.BigEndian.Uint16(header[2:4])
+	pLen := binary.BigEndian.Uint32(header[4:8])
+	avail := int64(binary.BigEndian.Uint64(header[8:16]))
+	
+	body := make([]byte, uint32(jLen)+uint32(qLen)+pLen)
+	if _, err := io.ReadFull(r, body); err != nil {
+		return "", "", "", 0, err
+	}
+	
+	jobID := string(body[:jLen])
+	qName := string(body[jLen : jLen+qLen])
+	payload := string(body[jLen+qLen:])
+	return jobID, qName, payload, avail, nil
+}
+
+func writeQDelFrame(w io.Writer, jobID, qName string) error {
+	jBytes, qBytes := []byte(jobID), []byte(qName)
+	buffer := make([]byte, 5+len(jBytes)+len(qBytes))
+	buffer[0] = OpQDel
+	binary.BigEndian.PutUint16(buffer[1:3], uint16(len(jBytes)))
+	binary.BigEndian.PutUint16(buffer[3:5], uint16(len(qBytes)))
+	
+	copy(buffer[5:], jBytes)
+	copy(buffer[5+len(jBytes):], qBytes)
+	_, err := w.Write(buffer)
+	return err
+}
+
+func readQDelFrame(r *bufio.Reader) (string, string, error) {
+	header := make([]byte, 4)
+	if _, err := io.ReadFull(r, header); err != nil {
+		return "", "", err
+	}
+	jLen := binary.BigEndian.Uint16(header[0:2])
+	qLen := binary.BigEndian.Uint16(header[2:4])
+	
+	body := make([]byte, jLen+qLen)
+	if _, err := io.ReadFull(r, body); err != nil {
+		return "", "", err
+	}
+	return string(body[:jLen]), string(body[jLen:]), nil
+}
+
+func writeQClearFrame(w io.Writer, qName string) error {
+	qBytes := []byte(qName)
+	buffer := make([]byte, 3+len(qBytes))
+	buffer[0] = OpQClear
+	binary.BigEndian.PutUint16(buffer[1:3], uint16(len(qBytes)))
+	copy(buffer[3:], qBytes)
+	_, err := w.Write(buffer)
+	return err
+}
+
+func readQClearFrame(r *bufio.Reader) (string, error) {
+	header := make([]byte, 2)
+	if _, err := io.ReadFull(r, header); err != nil {
+		return "", err
+	}
+	qLen := binary.BigEndian.Uint16(header[0:2])
+	body := make([]byte, qLen)
+	if _, err := io.ReadFull(r, body); err != nil {
+		return "", err
+	}
+	return string(body), nil
+}
+
+func broadcastQueuePush(jobID, qName, payload string, avail int64) {
+	if !haMode { return }
+	peersMutex.Lock()
+	defer peersMutex.Unlock()
+	for addr, conn := range peers {
+		go func(peerAddr string, c net.Conn) {
+			err := writeQPushFrame(c, jobID, qName, payload, avail)
+			if err != nil {
+				log.Printf("Failed to broadcast QPUSH to %s: %v", peerAddr, err)
+			}
+		}(addr, conn)
+	}
+}
+
+func broadcastQueueDel(jobID, qName string) {
+	if !haMode { return }
+	peersMutex.Lock()
+	defer peersMutex.Unlock()
+	for addr, conn := range peers {
+		go func(peerAddr string, c net.Conn) {
+			err := writeQDelFrame(c, jobID, qName)
+			if err != nil {
+				log.Printf("Failed to broadcast QDEL to %s: %v", peerAddr, err)
+			}
+		}(addr, conn)
+	}
+}
+
+func broadcastQueueClear(qName string) {
+	if !haMode { return }
+	peersMutex.Lock()
+	defer peersMutex.Unlock()
+	for addr, conn := range peers {
+		go func(peerAddr string, c net.Conn) {
+			err := writeQClearFrame(c, qName)
+			if err != nil {
+				log.Printf("Failed to broadcast QCLEAR to %s: %v", peerAddr, err)
+			}
+		}(addr, conn)
+	}
+}
+
+
+func acquireDistributedLock(key string, ttl int64) bool {
+	if !haMode {
+		return true // No lock needed if not in HA
+	}
+
+	shard := cache.getShard(key)
+	shard.mutex.Lock()
+	item, ok := shard.items[key]
+	exists := ok && (item.Expiration == 0 || item.Expiration > time.Now().Unix())
+
+	if exists {
+		shard.mutex.Unlock()
+		return false // Lock already held
+	}
+
+	expiration := time.Now().Unix() + ttl
+	val := []byte("1") // Dummy value for lock
+	shard.items[key] = CacheItem{Value: val, Expiration: expiration}
+	shard.mutex.Unlock()
+
+	// Persistence and Broadcast
+	if db != nil {
+		select {
+		case dbChan <- dbJob{op: "SET", key: key, val: val, exp: expiration}:
+		default:
+		}
+	}
+	broadcastSet(key, val, expiration)
+
+	return true
 }

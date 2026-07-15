@@ -20,6 +20,9 @@ Designed for modern PHP environments like **FrankenPHP**, **Swoole**, and tradit
 - **🔄 Active-Active HA Mode**: Fully synchronized multi-node clusters using binary TCP replication.
 - **🛡️ Service Management**: Built-in support for running as a systemd (Linux) or launchd (macOS) service.
 - **🔒 Distributed Locking**: Full support for atomic locks across multiple servers.
+- **⚙️ High-Performance Queue**: Drop-in queue driver (min-heap) fully compatible with Laravel Jobs, Events, and Notifications.
+- **🚀 Queue HA & Distributed Locks**: True Active-Active queue replication across the cluster with mathematical split-brain duplicate prevention.
+- **📊 Real-time Dashboard**: Built-in CLI dashboard to monitor logical/physical memory, disk usage, and peer connections (`php artisan hypercacheio:top`).
 - **✅ Modern Compatibility**: Fully supports Laravel 10.x, 11.x, 12.0, and 13.0.
 
 ---

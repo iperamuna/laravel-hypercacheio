@@ -32,6 +32,7 @@ class HypercacheioServiceProvider extends ServiceProvider
                 Console\ServerHandlerCommand::class,
                 Console\GoServerCommand::class,
                 Console\ServiceUpdateCommand::class,
+                Console\HypercacheioTopCommand::class,
             ]);
         }
 
@@ -40,6 +41,14 @@ class HypercacheioServiceProvider extends ServiceProvider
             $mergedConfig = array_merge($app['config']->get('hypercacheio', []), $config);
 
             return $app['cache']->repository(new HypercacheioStore($mergedConfig));
+        });
+
+        // Register the queue connection
+        $this->app->booted(function () {
+            $queueManager = $this->app->make('queue');
+            $queueManager->extend('hypercacheio', function () {
+                return new \Iperamuna\Hypercacheio\Queue\HypercacheioConnector();
+            });
         });
     }
 

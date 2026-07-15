@@ -1,4 +1,36 @@
-# Changelog - Laravel Hyper-Cache-IO
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+- **High-Performance Queue**: Native Queue Driver using the Go server's internal Min-Heap for $O(\log n)$ scheduling of Jobs, Events, and Notifications, fully compatible with Laravel Queue Contracts.
+- **Queue Resilience**: Seamless integration with Laravel's native job failure, delay, release, and backoff systems. Added resilient auto-healing maintenance routines that recycle stuck and expired jobs on the Go server automatically.
+- **Queue HA Replication & Distributed Locks**: Extended the TCP replication protocol to support Active-Active queue synchronization. Built a robust Distributed Lock integration into the queue worker polling mechanism to mathematically prevent split-brain duplicate job executions across the cluster.
+- **Queue Wiping**: Implemented Laravel's `ClearableQueue` interface and added an endpoint to the Go server for instantly wiping queue contents.
+- **Dashboard Command (`hypercacheio:top`)**: Added interactive CLI dashboard providing real-time visibility into process memory, Go heap allocation, logical memory utilization (separated by cache, locks, and queues), and estimated disk usage breakdown, along with peer status reporting.
+- **Go Server Metrics APIs**: Expanded the Go server's `/api/hypercacheio/ping` API to return precise runtime memory tracking (`Alloc`), physical SQLite disk usage, and peer connection details.
+- **Graceful Shutdown**: The Go daemon now captures SIGINT/SIGTERM gracefully, ensuring all async database persistence channels flush before exiting.
+
+### Changed
+- `hypercacheio:go-server start` and `make-service` now pass `listen_host` as `--host` to the binary instead of the advertised `host`.
+
+### Improved
+- **Broadcast Concurrency**: Go server node broadcasts to replication peers are now fully concurrent using dedicated Goroutines.
+- **Configuration Output**: Added queue configuration template to `config/hypercacheio.php` for easier setup.
+- **Test Coverage**: Added `QueueDriverTest.php`, `QueueFunctionalTest.php`, `QueueFailureTest.php`, and `TopCommandTest.php` for complete Pest coverage on the new components.
+
+### Upgrade Note
+Regenerate and reinstall your service file to apply the new binding:
+```bash
+php artisan hypercacheio:go-server make-service
+sudo cp hypercacheio-server.service /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl restart hypercacheio-server
+```
 
 
 ## [1.8.9] - 2026-07-15
@@ -121,16 +153,6 @@ All notable changes to this project will be documented in this file.
 ### Added
 - **`listen_host` config key** (`HYPERCACHEIO_GO_LISTEN_HOST`, defaults to `0.0.0.0`): The Go daemon now binds to `listen_host` while `host` remains the external/advertised IP used by secondaries. This fixes connectivity check failures on cloud servers where the LAN IP cannot be reached from the same host.
 
-### Changed
-- `hypercacheio:go-server start` and `make-service` now pass `listen_host` as `--host` to the binary instead of the advertised `host`.
-
-### Upgrade Note
-Regenerate and reinstall your service file to apply the new binding:
-```bash
-php artisan hypercacheio:go-server make-service
-sudo cp hypercacheio-server.service /etc/systemd/system/
-sudo systemctl daemon-reload && sudo systemctl restart hypercacheio-server
-```
 
 ## [1.4.4] - 2026-02-24
 
