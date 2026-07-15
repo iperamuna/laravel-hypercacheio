@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-07-16
+
 ### Added
 - **High-Performance Queue**: Native Queue Driver using the Go server's internal Min-Heap for $O(\log n)$ scheduling of Jobs, Events, and Notifications, fully compatible with Laravel Queue Contracts.
 - **Queue Resilience**: Seamless integration with Laravel's native job failure, delay, release, and backoff systems. Added resilient auto-healing maintenance routines that recycle stuck and expired jobs on the Go server automatically.
