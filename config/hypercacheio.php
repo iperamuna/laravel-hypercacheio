@@ -192,7 +192,7 @@ return [
          * If set, the Go daemon will listen on this path, and the local Laravel HTTP client
          * will use it instead of the TCP port, eliminating the TCP handshake overhead.
          */
-        'unix_socket' => env('HYPERCACHEIO_GO_UNIX_SOCKET', ''),
+        'unix_socket' => env('HYPERCACHEIO_GO_UNIX_SOCKET', storage_path('hypercacheio/hypercacheio.sock')),
 
         /*
          * The external/advertised host IP — used by secondary servers to connect here

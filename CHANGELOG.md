@@ -1,5 +1,10 @@
 # Changelog - Laravel Hyper-Cache-IO
 
+
+## [1.8.8] - 2026-07-15
+### Changed
+- Default `unix_socket` configuration path changed to `storage_path("hypercacheio/hypercacheio.sock")` for enhanced out-of-the-box compatibility with `PrivateTmp` constraints in systemd/PHP-FPM.
+
 All notable changes to this project will be documented in this file.
 
 ## [1.8.7] - 2026-07-15
