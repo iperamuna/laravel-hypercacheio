@@ -44,7 +44,9 @@ jobs:
       - name: Check Go Compilation
         run: |
           cd go-server
-          go build -v -o ../build/hypercacheio-server main.go
+          mkdir -p ../bin
+          go build -v -o ../bin/hypercacheio-server main.go
+          chmod +x ../bin/hypercacheio-server
 
       - name: Execute tests
         run: vendor/bin/pest
