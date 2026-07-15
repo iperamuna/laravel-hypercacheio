@@ -4,7 +4,7 @@
 [![Total Downloads](https://img.shields.io/packagist/dt/iperamuna/laravel-hypercacheio.svg?style=flat-square)](https://packagist.org/packages/iperamuna/laravel-hypercacheio)
 [![License](https://img.shields.io/packagist/l/iperamuna/laravel-hypercacheio.svg?style=flat-square)](https://packagist.org/packages/iperamuna/laravel-hypercacheio)
 
-**Laravel Hyper-Cache-IO** is an ultra-fast, distributed cache driver for Laravel applications. By combining **L1 in-memory caching** with a persistent **SQLite WAL backend**, it delivers exceptional performance and reliability without the overhead of Redis or Memcached.
+**Laravel Hyper-Cache-IO** is an ultra-fast, distributed cache and queue driver for Laravel applications. By combining **L1 in-memory caching** with a persistent **SQLite WAL backend**, it delivers exceptional performance and reliability without the overhead of Redis or Memcached.
 
 Designed for modern PHP environments like **FrankenPHP**, **Swoole**, and traditional **Nginx/FPM**, it features a lightweight internal HTTP API for seamless multi-server synchronization.
 
@@ -109,6 +109,14 @@ return [
     // SQLite database directory (auto-created by the install command)
     'sqlite_path' => storage_path('hypercacheio'),
 ];
+```
+
+
+### 2. Set the Queue Driver (Optional)
+
+To use the high-performance Queue system, update your `.env`:
+```dotenv
+QUEUE_CONNECTION=hypercacheio
 ```
 
 ### 4. Environment Variables Reference
@@ -268,6 +276,13 @@ if ($lock->get()) {
     
     $lock->release();
 }
+
+// ✅ Queue Jobs
+// Fully compatible with Laravel's Queue system (Jobs, Mailables, Notifications)
+dispatch(new ProcessPodcast($podcast));
+
+// Delay jobs natively using the Go Min-Heap
+dispatch(new ProcessPodcast($podcast))->delay(now()->addMinutes(10));
 ```
 
 ---
