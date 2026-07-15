@@ -1,5 +1,10 @@
 ## [1.8.3] - 2026-07-15
 
+
+## [1.8.4] - 2026-07-15
+### Added
+- Automatically generate sha256sums.txt on make all
+
 ### Fixed
 - **Object Serialization**: Fixed a critical issue where complex PHP objects (e.g. Eloquent models) were converted to generic arrays when being sent as JSON payloads to the Go server in HA Mode. All values are now natively serialized before HTTP transport, preserving their class definitions and ensuring compatibility with `php_serialize` in the Go daemon.
 
