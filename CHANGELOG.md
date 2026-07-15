@@ -1,15 +1,15 @@
-## [1.8.3] - 2026-07-15
+# Changelog - Laravel Hyper-Cache-IO
 
+All notable changes to this project will be documented in this file.
 
-## [1.8.6] - 2026-07-15
+## [1.8.7] - 2026-07-15
 ### Added
 - Documented Unix Domain Socket support in README
 - Code styling fixes via Pint
 
-## [1.8.5] - 2026-07-15
+## [1.8.6] - 2026-07-15
 ### Added
 - Added Unix Domain Socket support for zero-handshake local communication between Laravel and Go server
-
 
 ## [1.8.4] - 2026-07-15
 ### Added
@@ -17,11 +17,6 @@
 
 ### Fixed
 - **Object Serialization**: Fixed a critical issue where complex PHP objects (e.g. Eloquent models) were converted to generic arrays when being sent as JSON payloads to the Go server in HA Mode. All values are now natively serialized before HTTP transport, preserving their class definitions and ensuring compatibility with `php_serialize` in the Go daemon.
-
-
-# Changelog - Laravel Hyper-Cache-IO
-
-All notable changes to this project will be documented in this file.
 
 ## [1.8.2] - 2026-07-11
 
