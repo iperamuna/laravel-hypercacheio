@@ -208,6 +208,10 @@ class GoServerCommand extends Command
             '--ha-mode='.($config['ha_mode'] ? 'true' : 'false'),
         ];
 
+        if (! empty($config['unix_socket'])) {
+            $args[] = '--unix-socket="'.$config['unix_socket'].'"';
+        }
+
         if ($config['ssl']['enabled']) {
             $args[] = '--ssl=true';
             $args[] = "--cert={$config['ssl']['certificate']}";

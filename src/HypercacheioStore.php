@@ -57,6 +57,11 @@ class HypercacheioStore implements LockProvider, Store
     protected bool $haMode;
 
     /**
+     * Unix domain socket path for local Go server communication.
+     */
+    protected string $unixSocketPath = '';
+
+    /**
      * Create a new Hypercacheio store instance.
      *
      * @return void
@@ -69,6 +74,7 @@ class HypercacheioStore implements LockProvider, Store
         $this->apiToken = $config['api_token'] ?? '';
         $this->async = $config['async_requests'] ?? true;
         $this->haMode = $config['go_server']['ha_mode'] ?? $config['ha_mode'] ?? false;
+        $this->unixSocketPath = '';
 
         if ($this->haMode && ($config['server_type'] ?? 'laravel') === 'go') {
             // In HA mode with Go server, we always talk to the LOCAL Go server.
@@ -76,6 +82,7 @@ class HypercacheioStore implements LockProvider, Store
             $goConfig = $config['go_server'] ?? [];
             $port = $goConfig['port'] ?? 8080;
             $this->primaryUrl = "http://127.0.0.1:{$port}/api/hypercacheio";
+            $this->unixSocketPath = $goConfig['unix_socket'] ?? '';
             $this->role = 'secondary'; // Treat as secondary to force HTTP requests to Go server
         }
 
@@ -112,8 +119,13 @@ class HypercacheioStore implements LockProvider, Store
     protected function asyncRequest(string $method, string $endpoint, array $payload = [])
     {
         try {
+            $options = [];
+            if (! empty($this->unixSocketPath)) {
+                $options['curl'] = [CURLOPT_UNIX_SOCKET_PATH => $this->unixSocketPath];
+            }
 
             $promise = Http::timeout($this->timeout)
+                ->withOptions($options)
                 ->withHeaders([
                     'X-Hypercacheio-Token' => $this->apiToken,
                     'X-Hypercacheio-Server-ID' => gethostname(),
@@ -130,7 +142,13 @@ class HypercacheioStore implements LockProvider, Store
     protected function syncRequest(string $method, string $endpoint, array $payload = [])
     {
         try {
+            $options = [];
+            if (! empty($this->unixSocketPath)) {
+                $options['curl'] = [CURLOPT_UNIX_SOCKET_PATH => $this->unixSocketPath];
+            }
+
             $response = Http::timeout($this->timeout)
+                ->withOptions($options)
                 ->withHeaders([
                     'X-Hypercacheio-Token' => $this->apiToken,
                     'X-Hypercacheio-Server-ID' => gethostname(),

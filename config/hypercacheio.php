@@ -186,6 +186,14 @@ return [
          * Env: HYPERCACHEIO_GO_DIRECT_SQLITE
          */
         'direct_sqlite' => env('HYPERCACHEIO_GO_DIRECT_SQLITE', true),
+
+        /*
+         * Unix Domain Socket path for local Laravel -> Go communication.
+         * If set, the Go daemon will listen on this path, and the local Laravel HTTP client
+         * will use it instead of the TCP port, eliminating the TCP handshake overhead.
+         */
+        'unix_socket' => env('HYPERCACHEIO_GO_UNIX_SOCKET', ''),
+
         /*
          * The external/advertised host IP — used by secondary servers to connect here
          * and shown in status/connectivity-check output.

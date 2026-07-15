@@ -1,6 +1,11 @@
 ## [1.8.3] - 2026-07-15
 
 
+## [1.8.5] - 2026-07-15
+### Added
+- Added Unix Domain Socket support for zero-handshake local communication between Laravel and Go server
+
+
 ## [1.8.4] - 2026-07-15
 ### Added
 - Automatically generate sha256sums.txt on make all
