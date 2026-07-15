@@ -166,6 +166,12 @@ class HypercacheioStore implements LockProvider, Store
             // HA or Secondary: Sync Fetch from Go server or Primary
             $response = $this->doRequest('get', "cache/{$key}", [], true);
             $value = $response['data'] ?? null;
+            if (is_string($value)) {
+                $unserialized = @unserialize($value);
+                if ($unserialized !== false || $value === 'b:0;') {
+                    $value = $unserialized;
+                }
+            }
         }
 
         if ($value !== null) {
@@ -194,7 +200,7 @@ class HypercacheioStore implements LockProvider, Store
             return true;
         } else {
 
-            $this->doRequest('post', "cache/{$key}", ['value' => $value, 'ttl' => $seconds]);
+            $this->doRequest('post', "cache/{$key}", ['value' => serialize($value), 'ttl' => $seconds]);
 
             return true;
         }
@@ -243,7 +249,7 @@ class HypercacheioStore implements LockProvider, Store
                 return false;
             }
         } else {
-            $response = $this->doRequest('post', "add/{$key}", ['value' => $value, 'ttl' => $seconds], true);
+            $response = $this->doRequest('post', "add/{$key}", ['value' => serialize($value), 'ttl' => $seconds], true);
 
             return $response['added'] ?? false;
         }

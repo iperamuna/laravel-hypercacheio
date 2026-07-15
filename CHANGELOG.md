@@ -1,3 +1,9 @@
+## [1.8.3] - 2026-07-15
+
+### Fixed
+- **Object Serialization**: Fixed a critical issue where complex PHP objects (e.g. Eloquent models) were converted to generic arrays when being sent as JSON payloads to the Go server in HA Mode. All values are now natively serialized before HTTP transport, preserving their class definitions and ensuring compatibility with `php_serialize` in the Go daemon.
+
+
 # Changelog - Laravel Hyper-Cache-IO
 
 All notable changes to this project will be documented in this file.

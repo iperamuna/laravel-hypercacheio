@@ -122,3 +122,23 @@ it('performs secondary role operations correctly via HTTP', function () {
         return str_contains($request->url(), '/touch/key_touch') && $request->method() === 'POST';
     });
 });
+
+it('serializes values correctly before sending via HTTP', function () {
+    config(['hypercacheio.role' => 'secondary']);
+    config(['hypercacheio.primary_url' => 'http://test-primary/api/hypercacheio']);
+    config(['hypercacheio.async_requests' => false]);
+    config(['cache.prefix' => '']);
+    Cache::forgetDriver('hypercacheio');
+
+    Http::fake([
+        '*' => Http::response(['success' => true], 200),
+    ]);
+
+    $complexArray = ['hello' => 'world', 'nested' => [1, 2, 3]];
+    Cache::store('hypercacheio')->put('complex_key', $complexArray, 60);
+
+    Http::assertSent(function ($request) use ($complexArray) {
+        return str_contains($request->url(), '/cache/complex_key') &&
+               $request['value'] === serialize($complexArray);
+    });
+});
