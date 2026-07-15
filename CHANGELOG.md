@@ -1,6 +1,11 @@
 ## [1.8.3] - 2026-07-15
 
 
+## [1.8.6] - 2026-07-15
+### Added
+- Documented Unix Domain Socket support in README
+- Code styling fixes via Pint
+
 ## [1.8.5] - 2026-07-15
 ### Added
 - Added Unix Domain Socket support for zero-handshake local communication between Laravel and Go server
