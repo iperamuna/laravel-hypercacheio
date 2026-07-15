@@ -60,7 +60,7 @@ class HypercacheioTopCommand extends Command
                 if ($response->successful()) {
                     $this->renderDashboard($response->json());
                 } else {
-                    $this->error('Failed to connect to Go daemon. HTTP Status: ' . $response->status());
+                    $this->error('Failed to connect to Go daemon. HTTP Status: '.$response->status());
                 }
             } catch (\Exception $e) {
                 $this->error('Go daemon is unreachable. Is hypercacheio-server running?');
@@ -84,72 +84,75 @@ class HypercacheioTopCommand extends Command
         } else {
             system('clear');
         }
-        
+
         $formatBytes = function ($bytes) {
             $units = ['B', 'KB', 'MB', 'GB', 'TB'];
-            if ($bytes == 0) return '0 B';
+            if ($bytes == 0) {
+                return '0 B';
+            }
             $i = floor(log($bytes, 1024));
-            return round($bytes / pow(1024, $i), 2) . ' ' . $units[$i];
+
+            return round($bytes / pow(1024, $i), 2).' '.$units[$i];
         };
 
-        $this->info("==========================================================");
-        $this->info("   🚀 HYPERCACHEIO DASHBOARD");
-        $this->info("==========================================================");
-        
+        $this->info('==========================================================');
+        $this->info('   🚀 HYPERCACHEIO DASHBOARD');
+        $this->info('==========================================================');
+
         $this->line("<fg=yellow>Server:</> {$data['hostname']} (Role: {$data['role']})");
-        $this->line("<fg=yellow>Uptime (approx):</> " . date('Y-m-d H:i:s', $data['time']));
-        $this->line("<fg=yellow>HA Mode:</> " . ($data['ha_mode'] ? '<fg=green>Enabled</>' : '<fg=red>Disabled</>'));
-        
+        $this->line('<fg=yellow>Uptime (approx):</> '.date('Y-m-d H:i:s', $data['time']));
+        $this->line('<fg=yellow>HA Mode:</> '.($data['ha_mode'] ? '<fg=green>Enabled</>' : '<fg=red>Disabled</>'));
+
         $peers = $data['peers'] ?? [];
-        $this->line("<fg=yellow>Replication Peers:</> " . count($peers));
-        if (!empty($peers)) {
+        $this->line('<fg=yellow>Replication Peers:</> '.count($peers));
+        if (! empty($peers)) {
             foreach ($peers as $peer => $isActive) {
                 $status = $isActive ? '<fg=green>Online</>' : '<fg=red>Offline</>';
                 $this->line("  <fg=gray>-</> $peer [$status]");
             }
         }
-        
+
         $processMemory = $data['process_memory'] ?? 0;
         $heapMemory = $data['heap_memory'] ?? 0;
         $totalDisk = $data['disk_usage_total'] ?? 0;
         $cacheDisk = $data['disk_usage_cache'] ?? 0;
         $queueDisk = $data['disk_usage_queue'] ?? 0;
-        
+
         $cacheBytes = $data['cache_bytes'] ?? 0;
         $lockBytes = $data['lock_bytes'] ?? 0;
         $queueBytes = $data['queue_bytes'] ?? 0;
         $totalMemoryItems = $cacheBytes + $lockBytes + $queueBytes;
-        
-        $this->line("");
-        $this->info("--- 💻 MEMORY & RESOURCES ---");
-        $this->line("<fg=magenta>Total Process Memory (OS):</> " . $formatBytes($processMemory));
-        $this->line("<fg=magenta>Go Heap Allocated:</> " . $formatBytes($heapMemory));
-        $this->line("");
-        $this->line("<fg=cyan>Logical Memory (Cache+Locks):</> " . $formatBytes($cacheBytes + $lockBytes) . " (Cache: " . $formatBytes($cacheBytes) . ", Locks: " . $formatBytes($lockBytes) . ")");
-        $this->line("<fg=cyan>Logical Memory (Queues):</> " . $formatBytes($queueBytes));
-        $this->line("<fg=cyan>Total Logical Memory (Items):</> " . $formatBytes($totalMemoryItems));
 
-        $this->line("");
-        $this->info("--- 💽 DISK USAGE (SQLite) ---");
+        $this->line('');
+        $this->info('--- 💻 MEMORY & RESOURCES ---');
+        $this->line('<fg=magenta>Total Process Memory (OS):</> '.$formatBytes($processMemory));
+        $this->line('<fg=magenta>Go Heap Allocated:</> '.$formatBytes($heapMemory));
+        $this->line('');
+        $this->line('<fg=cyan>Logical Memory (Cache+Locks):</> '.$formatBytes($cacheBytes + $lockBytes).' (Cache: '.$formatBytes($cacheBytes).', Locks: '.$formatBytes($lockBytes).')');
+        $this->line('<fg=cyan>Logical Memory (Queues):</> '.$formatBytes($queueBytes));
+        $this->line('<fg=cyan>Total Logical Memory (Items):</> '.$formatBytes($totalMemoryItems));
+
+        $this->line('');
+        $this->info('--- 💽 DISK USAGE (SQLite) ---');
         if ($totalDisk > 0) {
-            $this->line("<fg=blue>Cache Disk Usage (est):</> " . $formatBytes($cacheDisk));
-            $this->line("<fg=blue>Queue Disk Usage (est):</> " . $formatBytes($queueDisk));
-            $this->line("<fg=blue>Combined Disk Usage:</> " . $formatBytes($totalDisk));
+            $this->line('<fg=blue>Cache Disk Usage (est):</> '.$formatBytes($cacheDisk));
+            $this->line('<fg=blue>Queue Disk Usage (est):</> '.$formatBytes($queueDisk));
+            $this->line('<fg=blue>Combined Disk Usage:</> '.$formatBytes($totalDisk));
         } else {
-            $this->line("<fg=gray>In-Memory Only (Persistence Disabled)</>");
+            $this->line('<fg=gray>In-Memory Only (Persistence Disabled)</>');
         }
 
-        $this->line("");
-        $this->info("--- 📦 STORAGE & CACHE STATS ---");
-        $this->line("<fg=cyan>Cache Items Count:</> " . number_format($data['items_count']));
-        $this->line("<fg=cyan>Active Locks Count:</> " . number_format($data['locks_count']));
-        
-        $this->line("");
-        $this->info("--- ⚙️ QUEUES ---");
-        
+        $this->line('');
+        $this->info('--- 📦 STORAGE & CACHE STATS ---');
+        $this->line('<fg=cyan>Cache Items Count:</> '.number_format($data['items_count']));
+        $this->line('<fg=cyan>Active Locks Count:</> '.number_format($data['locks_count']));
+
+        $this->line('');
+        $this->info('--- ⚙️ QUEUES ---');
+
         $queues = $data['queues'] ?? [];
         if (empty($queues)) {
-            $this->line("<fg=gray>No queues active currently.</>");
+            $this->line('<fg=gray>No queues active currently.</>');
         } else {
             $queueRows = [];
             foreach ($queues as $name => $stats) {
@@ -158,18 +161,18 @@ class HypercacheioTopCommand extends Command
                     $stats['ready'],
                     $stats['delayed'],
                     $stats['reserved'],
-                    $formatBytes($stats['payload_bytes'] ?? 0)
+                    $formatBytes($stats['payload_bytes'] ?? 0),
                 ];
             }
             $this->table(['Queue Name', 'Ready', 'Delayed', 'Reserved (Processing)', 'Logical Size'], $queueRows);
         }
 
-        $this->line("");
-        $this->info("--- 📈 NETWORK METRICS ---");
+        $this->line('');
+        $this->info('--- 📈 NETWORK METRICS ---');
         $stats = $data['stats'] ?? [];
-        $this->line("<fg=green>Sync Requests Served:</> " . number_format($stats['SyncRequests'] ?? 0));
-        $this->line("<fg=green>Total Incoming Operations:</> " . number_format($stats['TotalReceived'] ?? 0));
-        $this->line("<fg=green>Total Broadcasts to Peers:</> " . number_format($stats['TotalBroadcasts'] ?? 0));
-        $this->line("<fg=gray>Press Ctrl+C to exit...</>");
+        $this->line('<fg=green>Sync Requests Served:</> '.number_format($stats['SyncRequests'] ?? 0));
+        $this->line('<fg=green>Total Incoming Operations:</> '.number_format($stats['TotalReceived'] ?? 0));
+        $this->line('<fg=green>Total Broadcasts to Peers:</> '.number_format($stats['TotalBroadcasts'] ?? 0));
+        $this->line('<fg=gray>Press Ctrl+C to exit...</>');
     }
 }

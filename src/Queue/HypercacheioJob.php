@@ -11,7 +11,7 @@ class HypercacheioJob extends Job implements JobContract
     /**
      * The Hypercacheio queue instance.
      *
-     * @var \Iperamuna\Hypercacheio\Queue\HypercacheioQueue
+     * @var HypercacheioQueue
      */
     protected $hypercacheio;
 
@@ -32,8 +32,6 @@ class HypercacheioJob extends Job implements JobContract
     /**
      * Create a new job instance.
      *
-     * @param  \Illuminate\Container\Container  $container
-     * @param  \Iperamuna\Hypercacheio\Queue\HypercacheioQueue  $hypercacheio
      * @param  string  $payload
      * @param  string  $connectionName
      * @param  string  $queue

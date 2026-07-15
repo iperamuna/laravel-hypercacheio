@@ -3,17 +3,17 @@
 namespace Iperamuna\Hypercacheio\Queue;
 
 use Illuminate\Contracts\Queue\ClearableQueue;
+use Illuminate\Contracts\Queue\Job;
 use Illuminate\Contracts\Queue\Queue as QueueContract;
 use Illuminate\Queue\Queue;
-use Iperamuna\Hypercacheio\HypercacheioStore;
 use Iperamuna\Hypercacheio\Traits\InteractsWithGoServer;
 
-class HypercacheioQueue extends Queue implements QueueContract, ClearableQueue
+class HypercacheioQueue extends Queue implements ClearableQueue, QueueContract
 {
     use InteractsWithGoServer;
 
     protected $config;
-    
+
     /**
      * The default queue name.
      *
@@ -25,7 +25,7 @@ class HypercacheioQueue extends Queue implements QueueContract, ClearableQueue
     {
         $this->config = $config;
         $this->default = $config['queue'] ?? 'default';
-        
+
         // We initialize the HTTP client used to speak to the Go Server
         $this->initializeClient();
     }
@@ -39,13 +39,13 @@ class HypercacheioQueue extends Queue implements QueueContract, ClearableQueue
     public function size($queue = null)
     {
         $queueName = $this->getQueue($queue);
-        
+
         $response = $this->syncRequest('get', "/api/hypercacheio/queue/size/{$queueName}");
-        
+
         if ($response && isset($response['size'])) {
             return (int) $response['size'];
         }
-        
+
         return 0;
     }
 
@@ -67,22 +67,21 @@ class HypercacheioQueue extends Queue implements QueueContract, ClearableQueue
      *
      * @param  string  $payload
      * @param  string|null  $queue
-     * @param  array  $options
      * @return mixed
      */
     public function pushRaw($payload, $queue = null, array $options = [])
     {
         $queueName = $this->getQueue($queue);
-        
-        $response = $this->syncRequest('post', "/api/hypercacheio/queue/push", [
+
+        $response = $this->syncRequest('post', '/api/hypercacheio/queue/push', [
             'queue' => $queueName,
             'payload' => $payload,
         ]);
-        
+
         if ($response && isset($response['id'])) {
             return $response['id'];
         }
-        
+
         return null;
     }
 
@@ -99,19 +98,19 @@ class HypercacheioQueue extends Queue implements QueueContract, ClearableQueue
     {
         $queueName = $this->getQueue($queue);
         $payload = $this->createPayload($job, $queue, $data);
-        
+
         $availableAt = $this->availableAt($delay);
-        
-        $response = $this->syncRequest('post', "/api/hypercacheio/queue/push", [
+
+        $response = $this->syncRequest('post', '/api/hypercacheio/queue/push', [
             'queue' => $queueName,
             'payload' => $payload,
             'delay' => $availableAt,
         ]);
-        
+
         if ($response && isset($response['id'])) {
             return $response['id'];
         }
-        
+
         return null;
     }
 
@@ -119,18 +118,18 @@ class HypercacheioQueue extends Queue implements QueueContract, ClearableQueue
      * Pop the next job off of the queue.
      *
      * @param  string|null  $queue
-     * @return \Illuminate\Contracts\Queue\Job|null
+     * @return Job|null
      */
     public function pop($queue = null)
     {
         $queueName = $this->getQueue($queue);
         $retryAfter = $this->config['retry_after'] ?? 90;
-        
-        $response = $this->syncRequest('post', "/api/hypercacheio/queue/pop", [
+
+        $response = $this->syncRequest('post', '/api/hypercacheio/queue/pop', [
             'queue' => $queueName,
             'timeout' => $retryAfter,
         ]);
-        
+
         if ($response && isset($response['job'])) {
             return new HypercacheioJob(
                 $this->container,
@@ -141,7 +140,7 @@ class HypercacheioQueue extends Queue implements QueueContract, ClearableQueue
                 $response['job']['id']
             );
         }
-        
+
         return null;
     }
 
@@ -154,12 +153,12 @@ class HypercacheioQueue extends Queue implements QueueContract, ClearableQueue
      */
     public function deleteReserved($queue, $id)
     {
-        $this->syncRequest('post', "/api/hypercacheio/queue/delete", [
+        $this->syncRequest('post', '/api/hypercacheio/queue/delete', [
             'queue' => $queue,
             'id' => $id,
         ]);
     }
-    
+
     /**
      * Release a reserved job back onto the queue.
      *
@@ -171,8 +170,8 @@ class HypercacheioQueue extends Queue implements QueueContract, ClearableQueue
     public function release($queue, $id, $delay)
     {
         $availableAt = $this->availableAt($delay);
-        
-        $this->syncRequest('post', "/api/hypercacheio/queue/release", [
+
+        $this->syncRequest('post', '/api/hypercacheio/queue/release', [
             'queue' => $queue,
             'id' => $id,
             'delay' => $availableAt,
@@ -243,15 +242,15 @@ class HypercacheioQueue extends Queue implements QueueContract, ClearableQueue
     public function clear($queue)
     {
         $queueName = $this->getQueue($queue);
-        
+
         $response = $this->syncRequest('post', '/api/hypercacheio/queue/clear', [
-            'queue' => $queueName
+            'queue' => $queueName,
         ]);
-        
+
         if ($response && isset($response['cleared'])) {
             return $response['cleared'];
         }
-        
+
         return 0;
     }
 }

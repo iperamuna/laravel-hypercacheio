@@ -4,6 +4,7 @@ namespace Iperamuna\Hypercacheio;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\ServiceProvider;
+use Iperamuna\Hypercacheio\Queue\HypercacheioConnector;
 
 /**
  * Service provider for loading Hypercacheio components.
@@ -47,7 +48,7 @@ class HypercacheioServiceProvider extends ServiceProvider
         $this->app->booted(function () {
             $queueManager = $this->app->make('queue');
             $queueManager->extend('hypercacheio', function () {
-                return new \Iperamuna\Hypercacheio\Queue\HypercacheioConnector();
+                return new HypercacheioConnector;
             });
         });
     }

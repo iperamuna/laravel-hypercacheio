@@ -2,6 +2,7 @@
 
 namespace Iperamuna\Hypercacheio\Queue;
 
+use Illuminate\Contracts\Queue\Queue;
 use Illuminate\Queue\Connectors\ConnectorInterface;
 
 class HypercacheioConnector implements ConnectorInterface
@@ -9,8 +10,7 @@ class HypercacheioConnector implements ConnectorInterface
     /**
      * Establish a queue connection.
      *
-     * @param  array  $config
-     * @return \Illuminate\Contracts\Queue\Queue
+     * @return Queue
      */
     public function connect(array $config)
     {

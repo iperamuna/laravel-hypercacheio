@@ -29,7 +29,7 @@ trait InteractsWithGoServer
     protected function initializeClient()
     {
         $config = config('hypercacheio', []);
-        
+
         $goConfig = $config['go_server'] ?? [];
         $port = $goConfig['port'] ?? 8080;
         $this->primaryUrl = "http://127.0.0.1:{$port}";
