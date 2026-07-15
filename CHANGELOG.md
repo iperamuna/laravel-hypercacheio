@@ -1,6 +1,11 @@
 # Changelog - Laravel Hyper-Cache-IO
 
 
+## [1.8.9] - 2026-07-15
+### Fixed
+- Fixed `make-service` command not injecting the `--unix-socket` argument into the generated systemd/launchd service configuration file.
+
+
 ## [1.8.8] - 2026-07-15
 ### Changed
 - Default `unix_socket` configuration path changed to `storage_path("hypercacheio/hypercacheio.sock")` for enhanced out-of-the-box compatibility with `PrivateTmp` constraints in systemd/PHP-FPM.
