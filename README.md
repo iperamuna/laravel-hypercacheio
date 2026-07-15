@@ -120,6 +120,7 @@ return [
 | `HYPERCACHEIO_ASYNC` | Enable fire-and-forget replication | `true` |
 | `HYPERCACHEIO_SERVER_TYPE` | `laravel` (default) or `go` | `laravel` |
 | `HYPERCACHEIO_GO_DIRECT_SQLITE` | Execute SQLite queries directly in Go | `true` |
+| `HYPERCACHEIO_GO_UNIX_SOCKET` | Absolute path to a Unix Domain Socket to completely bypass TCP handshakes for local PHP -> Go communication | `null` |
 | `HYPERCACHEIO_GO_HOST` | External/advertised IP of the Go server (used by secondaries) | `127.0.0.1` |
 | `HYPERCACHEIO_GO_LISTEN_HOST` | IP the Go daemon **binds** to. Use `0.0.0.0` to listen on all interfaces | `0.0.0.0` |
 | `HYPERCACHEIO_GO_PORT` | Port the Go server listens on | `8080` |

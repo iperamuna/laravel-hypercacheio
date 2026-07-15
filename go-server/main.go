@@ -44,6 +44,7 @@ var (
 	haMode       bool
 	peerAddrs    string
 	replPort     int
+	unixSocket   string
 
 	db *sql.DB
 
@@ -128,6 +129,7 @@ func main() {
 	flag.BoolVar(&haMode, "ha-mode", true, "Enable HA mode")
 	flag.StringVar(&peerAddrs, "peers", "", "Comma-separated list of peer addresses (host:port) for TCP replication")
 	flag.IntVar(&replPort, "repl-port", 7400, "Port to listen for incoming replication")
+	flag.StringVar(&unixSocket, "unix-socket", "", "Unix socket path for local HTTP API")
 	flag.Parse()
 
 	// 2. Fallback to environment variables if flags are not set
@@ -207,6 +209,23 @@ func main() {
 	mux.HandleFunc("/api/hypercacheio/ping", handlePing)
 	mux.HandleFunc("/api/hypercacheio/items", handleItems)
 
+	handler := authMiddleware(mux)
+
+	if unixSocket != "" {
+		os.Remove(unixSocket) // Clean up if exists
+		unixListener, err := net.Listen("unix", unixSocket)
+		if err != nil {
+			log.Fatalf("Failed to listen on unix socket %s: %v", unixSocket, err)
+		}
+		os.Chmod(unixSocket, 0666) // allow anyone to connect to it locally
+		go func() {
+			log.Printf("Starting Hypercacheio HTTP API on Unix Socket %s", unixSocket)
+			if err := http.Serve(unixListener, handler); err != nil {
+				log.Fatalf("Unix socket server failed: %s", err)
+			}
+		}()
+	}
+
 	serverAddr := fmt.Sprintf("%s:%d", host, port)
 	log.Printf("Starting Hypercacheio HTTP API on %s", serverAddr)
 
@@ -215,9 +234,9 @@ func main() {
 		if sslCert == "" || sslKey == "" {
 			log.Fatal("SSL Certificate and Key are required when SSL is enabled")
 		}
-		err = http.ListenAndServeTLS(serverAddr, sslCert, sslKey, authMiddleware(mux))
+		err = http.ListenAndServeTLS(serverAddr, sslCert, sslKey, handler)
 	} else {
-		err = http.ListenAndServe(serverAddr, authMiddleware(mux))
+		err = http.ListenAndServe(serverAddr, handler)
 	}
 
 	if err != nil {
