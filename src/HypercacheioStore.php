@@ -68,6 +68,7 @@ class HypercacheioStore implements LockProvider, Store
      */
     public function __construct(array $config)
     {
+        $this->setPrefix($config['prefix'] ?? '');
         $this->timeout = $config['timeout'] ?? 1;
         $this->role = $config['role'] ?? 'primary';
         $this->primaryUrl = $config['primary_url'] ?? '';
@@ -430,5 +431,23 @@ class HypercacheioStore implements LockProvider, Store
         }
 
         return '';
+    }
+
+    /**
+     * Get all keys matching the given pattern.
+     */
+    public function keys(string $pattern): array
+    {
+        if ($this->role === 'primary' && ! $this->haMode) {
+            $sqlPattern = str_replace(['*', '?'], ['%', '_'], $pattern);
+            $stmt = $this->sqlite->prepare('SELECT key FROM cache WHERE key LIKE :pattern AND (expiration IS NULL OR expiration > :time)');
+            $stmt->execute([':pattern' => $sqlPattern, ':time' => time()]);
+
+            return $stmt->fetchAll(\PDO::FETCH_COLUMN);
+        } else {
+            $response = $this->doRequest('get', 'keys', ['pattern' => $pattern], true);
+
+            return $response['keys'] ?? [];
+        }
     }
 }

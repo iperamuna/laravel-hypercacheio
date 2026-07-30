@@ -277,6 +277,14 @@ if ($lock->get()) {
     $lock->release();
 }
 
+// ✅ Wildcard Keys Matching
+// Retrieve all keys matching a glob pattern (e.g. import_so_slug_*)
+$importSos = Cache::keys('import_so_slug_*');
+
+foreach ($importSos as $key) {
+    Cache::forget($key);
+}
+
 // ✅ Queue Jobs
 // Fully compatible with Laravel's Queue system (Jobs, Mailables, Notifications)
 dispatch(new ProcessPodcast($podcast));
@@ -298,6 +306,7 @@ The package exposes a lightweight internal API for node synchronization. Each en
 | `POST` | `/api/hypercacheio/add/{key}` | Atomic "Add" operation |
 | `POST` | `/api/hypercacheio/touch/{key}` | Set the expiration of a cached item |
 | `DELETE` | `/api/hypercacheio/cache/{key}` | Remove an item |
+| `GET` | `/api/hypercacheio/keys` | Retrieve keys matching a pattern |
 | `POST` | `/api/hypercacheio/lock/{key}` | Acquire an atomic lock |
 | `DELETE` | `/api/hypercacheio/lock/{key}` | Release an atomic lock |
 

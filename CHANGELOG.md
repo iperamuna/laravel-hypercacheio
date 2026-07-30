@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-07-30
+
+### Added
+- **Cache::keys Wildcard Matching Macro**: Registered a new `keys` macro on the Laravel `Cache` facade, supporting retrieval of keys matching wildcard/glob patterns (e.g. `import_so_slug_*`) across both primary and secondary roles.
+- **Go Server `/keys` Endpoint**: Implemented support on the standalone Go server daemon for matching and filtering keys using sharded scanning with glob patterns converted to regular expressions.
+- **Cache Controller & Service Integration**: Exposed route and action wrappers for `/keys` to safely fetch sharded keys in distributed deployments.
+
 ## [2.0.0] - 2026-07-16
 
 ### Added

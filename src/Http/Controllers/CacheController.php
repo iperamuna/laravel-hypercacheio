@@ -108,6 +108,16 @@ class CacheController extends Controller
     }
 
     /**
+     * Retrieve keys matching a pattern.
+     */
+    public function keys(Request $request)
+    {
+        $pattern = $request->query('pattern', '*');
+
+        return response()->json(['keys' => $this->service->keys($pattern)]);
+    }
+
+    /**
      * Ping the server to check connectivity and role.
      */
     public function ping()

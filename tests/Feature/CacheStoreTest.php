@@ -142,3 +142,55 @@ it('serializes values correctly before sending via HTTP', function () {
                $request['value'] === serialize($complexArray);
     });
 });
+
+it('can retrieve keys matching a pattern in primary role', function () {
+    config(['hypercacheio.role' => 'primary']);
+    config(['hypercacheio.async_requests' => false]);
+    $tempDir = __DIR__.'/temp_keys_primary';
+    config(['hypercacheio.sqlite_path' => $tempDir]);
+    Cache::forgetDriver('hypercacheio');
+
+    $store = Cache::store('hypercacheio');
+
+    $store->put('import_so_slug_1', 'val1', 60);
+    $store->put('import_so_slug_2', 'val2', 60);
+    $store->put('export_so_slug_1', 'val3', 60);
+
+    $keys = Cache::store('hypercacheio')->keys('import_so_slug_*');
+
+    expect($keys)->toHaveCount(2)
+        ->toContain('import_so_slug_1')
+        ->toContain('import_so_slug_2')
+        ->not->toContain('export_so_slug_1');
+
+    // Clean up
+    if (file_exists($tempDir)) {
+        $file = $tempDir.'/hypercacheio.sqlite';
+        if (file_exists($file)) {
+            @unlink($file);
+        }
+        @rmdir($tempDir);
+    }
+});
+
+it('can retrieve keys matching a pattern in secondary role via HTTP', function () {
+    config(['hypercacheio.role' => 'secondary']);
+    config(['hypercacheio.primary_url' => 'http://test-primary/api/hypercacheio']);
+    config(['hypercacheio.async_requests' => false]);
+    Cache::forgetDriver('hypercacheio');
+
+    Http::fake([
+        '*/keys*' => Http::response(['keys' => ['import_so_slug_1', 'import_so_slug_2']], 200),
+    ]);
+
+    $keys = Cache::store('hypercacheio')->keys('import_so_slug_*');
+
+    expect($keys)->toHaveCount(2)
+        ->toContain('import_so_slug_1')
+        ->toContain('import_so_slug_2');
+
+    Http::assertSent(function ($request) {
+        return str_contains($request->url(), '/keys') &&
+               str_contains($request->url(), 'pattern=import_so_slug_%2A');
+    });
+});

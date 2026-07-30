@@ -41,7 +41,7 @@ class HypercacheioServiceProvider extends ServiceProvider
             // Merge defaults from config/hypercacheio.php with store-specific config from cache.php
             $mergedConfig = array_merge($app['config']->get('hypercacheio', []), $config);
 
-            return $app['cache']->repository(new HypercacheioStore($mergedConfig));
+            return $app['cache']->repository(new HypercacheioStore($mergedConfig), $config);
         });
 
         // Register the queue connection
@@ -50,6 +50,17 @@ class HypercacheioServiceProvider extends ServiceProvider
             $queueManager->extend('hypercacheio', function () {
                 return new HypercacheioConnector;
             });
+        });
+
+        // Register keys macro on Cache Repository
+        Cache::macro('keys', function (string $pattern = '*') {
+            $store = $this->getStore();
+
+            if (method_exists($store, 'keys')) {
+                return $store->keys($pattern);
+            }
+
+            return [];
         });
     }
 

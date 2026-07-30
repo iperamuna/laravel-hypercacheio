@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -226,6 +227,7 @@ func main() {
 	mux.HandleFunc("/api/hypercacheio/lock/", handleLock)
 	mux.HandleFunc("/api/hypercacheio/ping", handlePing)
 	mux.HandleFunc("/api/hypercacheio/items", handleItems)
+	mux.HandleFunc("/api/hypercacheio/keys", handleKeys)
 	
 	// Queue Endpoints
 	mux.HandleFunc("/api/hypercacheio/queue/push", api.HandleQueuePush)
@@ -1095,6 +1097,58 @@ func handlePing(w http.ResponseWriter, r *http.Request) {
 		"replication_port": replPort,
 		"stats":            currentStats,
 	})
+}
+
+func handleKeys(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	pattern := r.URL.Query().Get("pattern")
+	if pattern == "" {
+		pattern = "*"
+	}
+
+	regPattern := "^"
+	for _, char := range pattern {
+		switch char {
+		case '*':
+			regPattern += ".*"
+		case '?':
+			regPattern += "."
+		case '.', '+', '(', ')', '[', ']', '{', '}', '^', '$', '\\', '|':
+			regPattern += "\\" + string(char)
+		default:
+			regPattern += string(char)
+		}
+	}
+	regPattern += "$"
+
+	regex, err := regexp.Compile(regPattern)
+	if err != nil {
+		http.Error(w, "Invalid pattern", http.StatusBadRequest)
+		return
+	}
+
+	keys := make([]string, 0)
+	now := time.Now().Unix()
+
+	for i := 0; i < NumShards; i++ {
+		shard := cache.shards[i]
+		shard.mutex.RLock()
+		for k, v := range shard.items {
+			if v.Expiration > 0 && v.Expiration < now {
+				continue
+			}
+			if regex.MatchString(k) {
+				keys = append(keys, k)
+			}
+		}
+		shard.mutex.RUnlock()
+	}
+
+	writeJSON(w, map[string]interface{}{"keys": keys})
 }
 
 func handleItems(w http.ResponseWriter, r *http.Request) {

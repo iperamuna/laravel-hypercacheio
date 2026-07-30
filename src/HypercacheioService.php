@@ -153,6 +153,18 @@ class HypercacheioService
     }
 
     /**
+     * Retrieve keys matching a pattern.
+     */
+    public function keys(string $pattern): array
+    {
+        $sqlPattern = str_replace(['*', '?'], ['%', '_'], $pattern);
+        $stmt = $this->sqlite->prepare('SELECT key FROM cache WHERE key LIKE :pattern AND (expiration IS NULL OR expiration > :time)');
+        $stmt->execute([':pattern' => $sqlPattern, ':time' => time()]);
+
+        return $stmt->fetchAll(\PDO::FETCH_COLUMN);
+    }
+
+    /**
      * Ping the server.
      */
     public function ping()
