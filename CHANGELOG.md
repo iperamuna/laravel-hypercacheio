@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-08-03
+
+### Fixed
+- **Early Queue Connector Registration**: Moved the registration of the `hypercacheio` queue driver to the package's `register()` method via `$this->app->resolving('queue')` instead of `boot()`. This resolves the `No connector for [hypercacheio]` exception that occurred during boot of other service providers (such as Vigilance) which resolve the queue manager before the package's `boot()` method is executed.
+
 ## [2.1.0] - 2026-07-30
 
 ### Added

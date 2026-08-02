@@ -44,14 +44,6 @@ class HypercacheioServiceProvider extends ServiceProvider
             return $app['cache']->repository(new HypercacheioStore($mergedConfig), $config);
         });
 
-        // Register the queue connection
-        $this->app->booted(function () {
-            $queueManager = $this->app->make('queue');
-            $queueManager->extend('hypercacheio', function () {
-                return new HypercacheioConnector;
-            });
-        });
-
         // Register keys macro on Cache Repository
         Cache::macro('keys', function (string $pattern = '*') {
             $store = $this->getStore();
@@ -75,6 +67,13 @@ class HypercacheioServiceProvider extends ServiceProvider
 
         $this->app->singleton(HypercacheioService::class, function ($app) {
             return new HypercacheioService;
+        });
+
+        // Register the queue connection early
+        $this->app->resolving('queue', function ($queue) {
+            $queue->extend('hypercacheio', function () {
+                return new HypercacheioConnector;
+            });
         });
     }
 }
