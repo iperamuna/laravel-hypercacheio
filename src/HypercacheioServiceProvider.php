@@ -4,7 +4,9 @@ namespace Iperamuna\Hypercacheio;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\ServiceProvider;
+use Iperamuna\Hypercacheio\Metrics\HypercacheioQueueDepth;
 use Iperamuna\Hypercacheio\Queue\HypercacheioConnector;
+use Vigilance\Metrics\QueueDepth;
 
 /**
  * Service provider for loading Hypercacheio components.
@@ -54,6 +56,13 @@ class HypercacheioServiceProvider extends ServiceProvider
 
             return [];
         });
+
+        // Rebind Vigilance's QueueDepth with our extended version so the Vigilance
+        // workload dashboard shows live depth for the hypercacheio driver instead of n/a.
+        // Done in boot() so all service providers have run and Vigilance is already loaded.
+        if (class_exists(QueueDepth::class)) {
+            $this->app->bind(QueueDepth::class, HypercacheioQueueDepth::class);
+        }
     }
 
     /**
