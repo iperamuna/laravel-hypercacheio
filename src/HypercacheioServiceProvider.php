@@ -55,34 +55,6 @@ class HypercacheioServiceProvider extends ServiceProvider
             return [];
         });
 
-        // Optional Vigilance integration: provide live queue depth for the hypercacheio
-        // driver in the Vigilance workload dashboard ("n/a" becomes a real count).
-        //
-        // We use a plain string class-name check and an anonymous class so that Vigilance
-        // is NEVER a hard dependency of this package — it only activates when Vigilance is
-        // already present. The anonymous-class `extends` clause is only evaluated at runtime
-        // when the `new class` expression is reached, which only happens inside the
-        // class_exists branch, so there is no risk of a fatal error when Vigilance is absent.
-        if (class_exists('Vigilance\Metrics\QueueDepth')) {
-            $this->app->bind('Vigilance\Metrics\QueueDepth', function () {
-                return new class extends \Vigilance\Metrics\QueueDepth {
-                    public function for(string $connection, string $queue): ?int
-                    {
-                        if (config("queue.connections.$connection.driver") === 'hypercacheio') {
-                            try {
-                                $q = app('queue')->connection($connection);
-
-                                return method_exists($q, 'size') ? (int) $q->size($queue) : null;
-                            } catch (\Throwable) {
-                                return null;
-                            }
-                        }
-
-                        return parent::for($connection, $queue);
-                    }
-                };
-            });
-        }
     }
 
     /**
