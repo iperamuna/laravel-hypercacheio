@@ -4,9 +4,7 @@ namespace Iperamuna\Hypercacheio;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\ServiceProvider;
-use Iperamuna\Hypercacheio\Metrics\HypercacheioQueueDepth;
 use Iperamuna\Hypercacheio\Queue\HypercacheioConnector;
-use Vigilance\Metrics\QueueDepth;
 
 /**
  * Service provider for loading Hypercacheio components.
@@ -57,11 +55,33 @@ class HypercacheioServiceProvider extends ServiceProvider
             return [];
         });
 
-        // Rebind Vigilance's QueueDepth with our extended version so the Vigilance
-        // workload dashboard shows live depth for the hypercacheio driver instead of n/a.
-        // Done in boot() so all service providers have run and Vigilance is already loaded.
-        if (class_exists(QueueDepth::class)) {
-            $this->app->bind(QueueDepth::class, HypercacheioQueueDepth::class);
+        // Optional Vigilance integration: provide live queue depth for the hypercacheio
+        // driver in the Vigilance workload dashboard ("n/a" becomes a real count).
+        //
+        // We use a plain string class-name check and an anonymous class so that Vigilance
+        // is NEVER a hard dependency of this package — it only activates when Vigilance is
+        // already present. The anonymous-class `extends` clause is only evaluated at runtime
+        // when the `new class` expression is reached, which only happens inside the
+        // class_exists branch, so there is no risk of a fatal error when Vigilance is absent.
+        if (class_exists('Vigilance\Metrics\QueueDepth')) {
+            $this->app->bind('Vigilance\Metrics\QueueDepth', function () {
+                return new class extends \Vigilance\Metrics\QueueDepth {
+                    public function for(string $connection, string $queue): ?int
+                    {
+                        if (config("queue.connections.$connection.driver") === 'hypercacheio') {
+                            try {
+                                $q = app('queue')->connection($connection);
+
+                                return method_exists($q, 'size') ? (int) $q->size($queue) : null;
+                            } catch (\Throwable) {
+                                return null;
+                            }
+                        }
+
+                        return parent::for($connection, $queue);
+                    }
+                };
+            });
         }
     }
 
