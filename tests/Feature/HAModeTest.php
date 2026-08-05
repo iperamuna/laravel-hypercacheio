@@ -65,3 +65,52 @@ it('supports multiple peers in config without double prefixing issues', function
         return str_contains($request->url(), '/api/hypercacheio/cache/');
     });
 });
+
+it('acquires locks synchronously in HA mode via Go server', function () {
+    config(['hypercacheio.go_server.ha_mode' => true]);
+    config(['hypercacheio.server_type' => 'go']);
+    config(['hypercacheio.go_server.port' => 9090]);
+    config(['cache.prefix' => '']);
+
+    Cache::forgetDriver('hypercacheio');
+
+    Http::fake([
+        'http://127.0.0.1:9090/api/hypercacheio/lock/*' => Http::response(['acquired' => true, 'released' => true], 200),
+    ]);
+
+    $lock = Cache::store('hypercacheio')->lock('ha-lock-test', 10);
+    expect($lock->get())->toBeTrue();
+
+    Http::assertSent(function ($request) {
+        return str_contains($request->url(), '127.0.0.1:9090/api/hypercacheio/lock/ha-lock-test')
+            && $request->method() === 'POST';
+    });
+
+    expect($lock->release())->toBeTrue();
+
+    Http::assertSent(function ($request) {
+        return str_contains($request->url(), '127.0.0.1:9090/api/hypercacheio/lock/ha-lock-test')
+            && $request->method() === 'DELETE';
+    });
+});
+
+it('performs atomic add operations synchronously in HA mode via Go server', function () {
+    config(['hypercacheio.go_server.ha_mode' => true]);
+    config(['hypercacheio.server_type' => 'go']);
+    config(['hypercacheio.go_server.port' => 9090]);
+    config(['cache.prefix' => '']);
+
+    Cache::forgetDriver('hypercacheio');
+
+    Http::fake([
+        'http://127.0.0.1:9090/api/hypercacheio/add/*' => Http::response(['added' => true], 200),
+    ]);
+
+    $added = Cache::store('hypercacheio')->add('ha-add-test', 'some-val', 60);
+    expect($added)->toBeTrue();
+
+    Http::assertSent(function ($request) {
+        return str_contains($request->url(), '127.0.0.1:9090/api/hypercacheio/add/ha-add-test')
+            && $request->method() === 'POST';
+    });
+});

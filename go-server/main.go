@@ -875,6 +875,113 @@ func handleCache(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func checkPeersLockAcquire(key string, owner string, ttl *int) bool {
+	rawKey := strings.TrimPrefix(key, "lock:")
+	addrs := strings.Split(peerAddrs, ",")
+	client := &http.Client{Timeout: 1 * time.Second}
+
+	type lockResp struct {
+		Acquired bool `json:"acquired"`
+	}
+
+	payloadBytes, _ := json.Marshal(map[string]interface{}{
+		"owner": owner,
+		"ttl":   ttl,
+	})
+
+	for _, addr := range addrs {
+		addr = strings.TrimSpace(addr)
+		if addr == "" {
+			continue
+		}
+
+		urlStr := addr
+		if !strings.HasPrefix(urlStr, "http://") && !strings.HasPrefix(urlStr, "https://") {
+			urlStr = "http://" + urlStr
+		}
+		urlStr = fmt.Sprintf("%s/api/hypercacheio/lock/%s?peer_check=1", strings.TrimRight(urlStr, "/"), rawKey)
+
+		req, err := http.NewRequest("POST", urlStr, strings.NewReader(string(payloadBytes)))
+		if err != nil {
+			continue
+		}
+		if apiToken != "" {
+			req.Header.Set("X-Hypercacheio-Token", apiToken)
+		}
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := client.Do(req)
+		if err != nil {
+			continue
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode == http.StatusOK {
+			var res lockResp
+			if err := json.NewDecoder(resp.Body).Decode(&res); err == nil {
+				if !res.Acquired {
+					return false
+				}
+			}
+		}
+	}
+
+	return true
+}
+
+func checkPeersAdd(key string, value interface{}, ttl *int) bool {
+	addrs := strings.Split(peerAddrs, ",")
+	client := &http.Client{Timeout: 1 * time.Second}
+
+	type addResp struct {
+		Added bool `json:"added"`
+	}
+
+	payloadBytes, _ := json.Marshal(map[string]interface{}{
+		"value": value,
+		"ttl":   ttl,
+	})
+
+	for _, addr := range addrs {
+		addr = strings.TrimSpace(addr)
+		if addr == "" {
+			continue
+		}
+
+		urlStr := addr
+		if !strings.HasPrefix(urlStr, "http://") && !strings.HasPrefix(urlStr, "https://") {
+			urlStr = "http://" + urlStr
+		}
+		urlStr = fmt.Sprintf("%s/api/hypercacheio/add/%s?peer_check=1", strings.TrimRight(urlStr, "/"), key)
+
+		req, err := http.NewRequest("POST", urlStr, strings.NewReader(string(payloadBytes)))
+		if err != nil {
+			continue
+		}
+		if apiToken != "" {
+			req.Header.Set("X-Hypercacheio-Token", apiToken)
+		}
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := client.Do(req)
+		if err != nil {
+			continue
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode == http.StatusOK {
+			var res addResp
+			if err := json.NewDecoder(resp.Body).Decode(&res); err == nil {
+				if !res.Added {
+					return false
+				}
+			}
+		}
+	}
+
+	return true
+}
+
 func handleAdd(w http.ResponseWriter, r *http.Request) {
 	key := strings.TrimPrefix(r.URL.Path, "/api/hypercacheio/add/")
 	body, _ := io.ReadAll(r.Body)
@@ -890,6 +997,15 @@ func handleAdd(w http.ResponseWriter, r *http.Request) {
 		shard.mutex.Unlock()
 		writeJSON(w, map[string]bool{"added": false})
 		return
+	}
+
+	isPeerCheck := r.URL.Query().Get("peer_check") == "1"
+	if haMode && !isPeerCheck && peerAddrs != "" {
+		if !checkPeersAdd(key, payload.Value, payload.TTL) {
+			shard.mutex.Unlock()
+			writeJSON(w, map[string]bool{"added": false})
+			return
+		}
 	}
 
 	var expiration int64
@@ -974,6 +1090,15 @@ func handleLock(w http.ResponseWriter, r *http.Request) {
 			shard.mutex.Unlock()
 			writeJSON(w, map[string]bool{"acquired": false})
 			return
+		}
+
+		isPeerCheck := r.URL.Query().Get("peer_check") == "1"
+		if haMode && !isPeerCheck && peerAddrs != "" {
+			if !checkPeersLockAcquire(key, payload.Owner, payload.TTL) {
+				shard.mutex.Unlock()
+				writeJSON(w, map[string]bool{"acquired": false})
+				return
+			}
 		}
 
 		var expiration int64

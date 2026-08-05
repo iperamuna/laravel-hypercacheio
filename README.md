@@ -174,6 +174,7 @@ HYPERCACHEIO_GO_LISTEN_HOST=0.0.0.0
 As of version **1.6.0**, Hyper-Cache-IO supports a robust Active-Active HA architecture. Multiple application servers can each run their own local Go cache node, with all nodes synchronizing state in real-time over a dedicated binary TCP protocol.
 
 - **Full-Mesh Replication**: Every write on one node is instantly broadcast to all configured peers.
+- **Synchronous Lock & Add Consensus**: Atomic locks (`acquireLock`) and additions (`add`) perform real-time peer validation across the cluster to eliminate race conditions.
 - **Bootstrap Sync**: When a new node joins the cluster, it automatically requests a full state dump from existing peers.
 - **Zero-Wait Primary**: No more bottlenecking on a single "Primary" URL. Your app talks to its local node, and replication happens in the background.
 

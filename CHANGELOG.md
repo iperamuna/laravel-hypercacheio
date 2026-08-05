@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-08-06
+
+### Added
+- **Synchronous HA Peer Consensus for Locks & Add Operations**: Implemented `checkPeersLockAcquire()` and `checkPeersAdd()` on the standalone Go server daemon. In Active-Active HA mode (`ha_mode = true`), lock (`POST /api/hypercacheio/lock/*`) and add (`POST /api/hypercacheio/add/*`) operations perform synchronous cross-node peer validation (`?peer_check=1`) prior to granting local locks or additions, eliminating race conditions across multi-node clusters.
+
+### Improved
+- **Updated Pre-compiled Binaries**: Recompiled Go server binaries for `darwin-arm64`, `darwin-amd64`, `linux-arm64`, and `linux-amd64` with the consensus verification engine and updated `sha256sums.txt`.
+- **Expanded HA Test Suite**: Added feature tests covering multi-node lock consensus and race-condition prevention in `HAModeTest.php`.
+
 ## [2.1.1] - 2026-08-03
 
 ### Fixed
