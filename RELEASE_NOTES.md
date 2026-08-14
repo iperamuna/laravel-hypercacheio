@@ -1,3 +1,16 @@
+# Release Notes - v2.2.1
+
+**Laravel Hyper-Cache-IO**
+
+This patch release fixes a critical distributed lock bug where scheduler locks would become permanently stuck across Go server peers and resolves a socket file descriptor leak.
+
+## 🛠️ Cache Lock Clearing & Socket Leak Fixes
+- **Lock Mutex Auto-Cleanup**: Updated the Go server's `DELETE /api/hypercacheio/cache/{key}` endpoint to automatically delete the `"lock:"` prefixed locks when the base cache key is deleted. This fixes `php artisan schedule:clear-cache` to successfully clear active scheduler mutexes.
+- **Fixed Socket/File Descriptor Leak**: Fixed a socket leak in `checkPeersLockAcquire()` and `checkPeersAdd()` by closing the HTTP response body immediately inside the loop iteration rather than deferring it until the enclosing function returns. This prevents descriptor exhaustion under high scheduler and addition concurrency.
+- **Rebuilt Binaries**: Recompiled Go server binaries for all supported platforms with these fixes.
+
+---
+
 # Release Notes - v1.8.2
 
 **Laravel Hyper-Cache-IO**

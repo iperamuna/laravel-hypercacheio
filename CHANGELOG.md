@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-08-15
+
+### Fixed
+- **Distributed Mutex Lock Expirations and Cache Clearing**: Updated the Go server's `DELETE /api/hypercacheio/cache/{key}` endpoint to automatically clean up `"lock:"` prefixed locks when the base key is forgotten. This enables Laravel's native `schedule:clear-cache` to successfully clear active scheduler mutex locks and prevents tasks from being stuck in a locked state.
+- **Resource/Socket Leak in Peer Validation**: Fixed a file descriptor and socket leak in `checkPeersLockAcquire()` and `checkPeersAdd()` by closing the HTTP response body immediately inside the loop iteration rather than deferring it until the enclosing function returns. This prevents socket exhaustion under concurrent consensus checks.
+- **Precompiled Binaries**: Recompiled and updated all platform binaries (`darwin-arm64`, `darwin-amd64`, `linux-arm64`, `linux-amd64`) in the `resources/hypercacheio/bin/` folder.
+
 ## [2.2.0] - 2026-08-06
 
 ### Added

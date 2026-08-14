@@ -870,6 +870,8 @@ func handleCache(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, map[string]bool{"success": true})
 		} else {
 			delLocal(key, true)
+			// Also clear lock if exists
+			delLocal("lock:"+key, true)
 			writeJSON(w, map[string]bool{"success": true})
 		}
 	}
@@ -914,15 +916,19 @@ func checkPeersLockAcquire(key string, owner string, ttl *int) bool {
 		if err != nil {
 			continue
 		}
-		defer resp.Body.Close()
 
 		if resp.StatusCode == http.StatusOK {
 			var res lockResp
 			if err := json.NewDecoder(resp.Body).Decode(&res); err == nil {
+				resp.Body.Close()
 				if !res.Acquired {
 					return false
 				}
+			} else {
+				resp.Body.Close()
 			}
+		} else {
+			resp.Body.Close()
 		}
 	}
 
@@ -967,15 +973,19 @@ func checkPeersAdd(key string, value interface{}, ttl *int) bool {
 		if err != nil {
 			continue
 		}
-		defer resp.Body.Close()
 
 		if resp.StatusCode == http.StatusOK {
 			var res addResp
 			if err := json.NewDecoder(resp.Body).Decode(&res); err == nil {
+				resp.Body.Close()
 				if !res.Added {
 					return false
 				}
+			} else {
+				resp.Body.Close()
 			}
+		} else {
+			resp.Body.Close()
 		}
 	}
 
