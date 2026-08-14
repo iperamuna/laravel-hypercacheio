@@ -1,3 +1,14 @@
+# Release Notes - v2.2.2
+
+**Laravel Hyper-Cache-IO**
+
+This patch release fixes a terminal hang when running `hypercacheio:connectivity-check` in non-interactive/SSH environments by removing interactive console loader dependencies.
+
+## 🛠️ Stable Diagnostics Check
+- **Removed Laravel Prompts**: Swapped custom interactive animations and inputs from the `hypercacheio:connectivity-check` command for standard, robust Symfony console writers. This ensures diagnostics run seamlessly on automated remote servers without blocking terminal interfaces.
+
+---
+
 # Release Notes - v2.2.1
 
 **Laravel Hyper-Cache-IO**

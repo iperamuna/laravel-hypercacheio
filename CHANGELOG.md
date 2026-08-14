@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.2] - 2026-08-15
+
+### Fixed
+- **Interactive Prompts Hang in Non-TTY/SSH Environments**: Refactored the `hypercacheio:connectivity-check` Artisan command to remove its dependency on `Laravel\Prompts` (such as `spin()`, `info()`, `note()`). This resolves infinite loop/terminal blocking issues when executing connection diagnostics over SSH or inside non-TTY scripts (like deployments).
+
 ## [2.2.1] - 2026-08-15
 
 ### Fixed

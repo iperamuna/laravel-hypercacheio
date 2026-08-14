@@ -6,13 +6,6 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
-use function Laravel\Prompts\error;
-use function Laravel\Prompts\info;
-use function Laravel\Prompts\note;
-use function Laravel\Prompts\spin;
-use function Laravel\Prompts\table;
-use function Laravel\Prompts\warning;
-
 class ConnectivityCheckCommand extends Command
 {
     /**
@@ -41,14 +34,14 @@ class ConnectivityCheckCommand extends Command
         $apiToken = config('hypercacheio.api_token', '');
         $timeout = config('hypercacheio.timeout', 1);
 
-        info('🔍 Hypercacheio Connectivity & Endpoint Check');
-        note("Current server role: {$role}");
-        note('Server Type: '.strtoupper($serverType));
-        note('Hostname: '.gethostname());
+        $this->info('🔍 Hypercacheio Connectivity & Endpoint Check');
+        $this->comment("Current server role: {$role}");
+        $this->comment('Server Type: '.strtoupper($serverType));
+        $this->comment('Hostname: '.gethostname());
 
         if ($serverType === 'go') {
             $goConfig = config('hypercacheio.go_server');
-            note("Go Server: {$goConfig['host']}:{$goConfig['port']} ".($goConfig['ssl']['enabled'] ? '(SSL)' : '(Non-SSL)'));
+            $this->comment("Go Server: {$goConfig['host']}:{$goConfig['port']} ".($goConfig['ssl']['enabled'] ? '(SSL)' : '(Non-SSL)'));
         }
 
         // 1. Check Local Server Status
@@ -61,28 +54,27 @@ class ConnectivityCheckCommand extends Command
             $localUrl = $localUrls[0];
 
             $localTimeout = max(3, $timeout); // Give local server at least 3s to boot/respond
-            $localResult = spin(function () use ($localUrls, $apiToken, $localTimeout, &$localUrl) {
-                foreach ($localUrls as $url) {
-                    $result = $this->performRequest('Local Server', $url, 'GET', 'ping', [], $apiToken, $localTimeout);
-                    if ($result[3] === '✅ OK') {
-                        $localUrl = $url;
-
-                        return $result;
-                    }
-
-                    // Whether it's connection refused (7) or timeout (28), try the next URL before giving up.
-                    // This is robust against loopback proxy issues or unroutable interfaces.
+            $this->output->write('Checking local '.strtoupper($serverType).' server... ');
+            foreach ($localUrls as $url) {
+                $result = $this->performRequest('Local Server', $url, 'GET', 'ping', [], $apiToken, $localTimeout);
+                if ($result[3] === '✅ OK') {
                     $localUrl = $url;
+                    $localResult = $result;
+                    break;
                 }
+                $localUrl = $url;
+            }
 
-                // Return the last failure
-                return $result ?? $this->performRequest('Local Server', $localUrl, 'GET', 'ping', [], $apiToken, $localTimeout);
-            }, 'Checking local '.strtoupper($serverType).' server...');
+            if (! $localResult) {
+                $localResult = $result ?? $this->performRequest('Local Server', $localUrl, 'GET', 'ping', [], $apiToken, $localTimeout);
+            }
+
+            $this->output->writeln($localResult[3]);
         }
 
         if ($localResult[3] !== '✅ OK' && $localResult[3] !== '✅ OK (Skipped)') {
-            error('❌ Local '.strtoupper($serverType)." server is not responding at: $localUrl");
-            note('Reason: '.$localResult[5]);
+            $this->error('❌ Local '.strtoupper($serverType)." server is not responding at: $localUrl");
+            $this->comment('Reason: '.$localResult[5]);
 
             if ($serverType === 'go') {
                 $this->showFirewallAdvice($localUrl);
@@ -102,13 +94,13 @@ class ConnectivityCheckCommand extends Command
         }
 
         if (empty($results)) {
-            warning('No remote servers configured to check.');
+            $this->warn('No remote servers configured to check.');
 
             return 0;
         }
 
         // Display results table
-        table(
+        $this->table(
             ['Server', 'Endpoint', 'Method', 'Status', 'Time', 'Message'],
             $results,
         );
@@ -121,13 +113,13 @@ class ConnectivityCheckCommand extends Command
         $this->newLine();
 
         if ($failed === 0) {
-            info("✅ All {$total} checks passed successfully.");
+            $this->info("✅ All {$total} checks passed successfully.");
         } else {
-            error("❌ {$failed} of {$total} checks failed.");
+            $this->error("❌ {$failed} of {$total} checks failed.");
 
             $failedServers = collect($results)->filter(fn ($row) => $row[3] !== '✅ OK')->pluck(0)->unique();
             $this->newLine();
-            warning('Potential connection issues detected for: '.$failedServers->implode(', '));
+            $this->warn('Potential connection issues detected for: '.$failedServers->implode(', '));
             $this->showFirewallAdvice();
 
             return 1;
@@ -141,12 +133,12 @@ class ConnectivityCheckCommand extends Command
         $secondaries = config('hypercacheio.secondaries', []);
 
         if (empty($secondaries)) {
-            warning('No secondary servers configured in hypercacheio.secondaries.');
+            $this->warn('No secondary servers configured in hypercacheio.secondaries.');
 
             return [];
         }
 
-        note('Checking '.count($secondaries).' secondary server(s)...');
+        $this->comment('Checking '.count($secondaries).' secondary server(s)...');
 
         $results = [];
         foreach ($secondaries as $index => $secondary) {
@@ -165,12 +157,11 @@ class ConnectivityCheckCommand extends Command
             $scheme = $parsed['scheme'] ?? 'http';
             $serverTypeLbl = strtoupper(config('hypercacheio.server_type', 'laravel'));
 
-            $checkResults = spin(
-                fn () => $this->runFullCheck($label, $url, $apiToken, $timeout),
-                "Checking {$label} [{$serverTypeLbl}] at {$scheme}://{$host}{$port}..."
-            );
+            $this->output->write("Checking {$label} [{$serverTypeLbl}] at {$scheme}://{$host}{$port}... ");
+            $checkResults = $this->runFullCheck($label, $url, $apiToken, $timeout);
+            $this->output->writeln('Done');
 
-            note("✔ Checked {$label} [{$serverTypeLbl}] → {$scheme}://{$host}{$port}");
+            $this->comment("✔ Checked {$label} [{$serverTypeLbl}] → {$scheme}://{$host}{$port}");
 
             $results = array_merge($results, $checkResults);
         }
@@ -183,7 +174,7 @@ class ConnectivityCheckCommand extends Command
         $primaryUrl = config('hypercacheio.primary_url', '');
 
         if (empty($primaryUrl)) {
-            warning('No primary server URL configured in hypercacheio.primary_url.');
+            $this->warn('No primary server URL configured in hypercacheio.primary_url.');
 
             return [];
         }
@@ -194,14 +185,13 @@ class ConnectivityCheckCommand extends Command
         $scheme = $parsed['scheme'] ?? 'http';
         $serverTypeLbl = strtoupper(config('hypercacheio.server_type', 'laravel'));
 
-        note("Checking connectivity to primary server [{$serverTypeLbl}] at {$scheme}://{$host}{$port}...");
+        $this->comment("Checking connectivity to primary server [{$serverTypeLbl}] at {$scheme}://{$host}{$port}...");
 
-        $results = spin(
-            fn () => $this->runFullCheck('Primary', $primaryUrl, $apiToken, $timeout),
-            "Checking Primary [{$serverTypeLbl}] at {$scheme}://{$host}{$port}..."
-        );
+        $this->output->write("Checking Primary [{$serverTypeLbl}] at {$scheme}://{$host}{$port}... ");
+        $results = $this->runFullCheck('Primary', $primaryUrl, $apiToken, $timeout);
+        $this->output->writeln('Done');
 
-        note("✔ Checked Primary [{$serverTypeLbl}] → {$scheme}://{$host}{$port}");
+        $this->comment("✔ Checked Primary [{$serverTypeLbl}] → {$scheme}://{$host}{$port}");
 
         return $results;
     }
@@ -210,7 +200,7 @@ class ConnectivityCheckCommand extends Command
     {
         $peerAddrsStr = config('hypercacheio.go_server.peer_addrs', '');
         if (empty($peerAddrsStr)) {
-            warning('HA Mode enabled but no peer addresses configured in hypercacheio.go_server.peer_addrs.');
+            $this->warn('HA Mode enabled but no peer addresses configured in hypercacheio.go_server.peer_addrs.');
 
             return [];
         }
@@ -233,12 +223,11 @@ class ConnectivityCheckCommand extends Command
             $url = "{$scheme}://{$host}:{$httpPort}/api/hypercacheio";
             $label = 'Peer #'.($index + 1)." ({$host})";
 
-            note("Checking Peer [GO] at {$url}...");
+            $this->comment("Checking Peer [GO] at {$url}...");
 
-            $checkResults = spin(
-                fn () => $this->runFullCheck($label, $url, $apiToken, $timeout),
-                "Verifying HA Consistency with {$label}..."
-            );
+            $this->output->write("Verifying HA Consistency with {$label}... ");
+            $checkResults = $this->runFullCheck($label, $url, $apiToken, $timeout);
+            $this->output->writeln('Done');
 
             $results = array_merge($results, $checkResults);
         }
