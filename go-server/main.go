@@ -897,9 +897,12 @@ func checkPeersLockAcquire(key string, owner string, ttl *int) bool {
 			continue
 		}
 
-		urlStr := addr
-		if !strings.HasPrefix(urlStr, "http://") && !strings.HasPrefix(urlStr, "https://") {
-			urlStr = "http://" + urlStr
+		var urlStr string
+		host, _, err := net.SplitHostPort(addr)
+		if err == nil {
+			urlStr = fmt.Sprintf("http://%s:%d", host, port)
+		} else {
+			urlStr = "http://" + addr
 		}
 		urlStr = fmt.Sprintf("%s/api/hypercacheio/lock/%s?peer_check=1", strings.TrimRight(urlStr, "/"), rawKey)
 
@@ -954,9 +957,12 @@ func checkPeersAdd(key string, value interface{}, ttl *int) bool {
 			continue
 		}
 
-		urlStr := addr
-		if !strings.HasPrefix(urlStr, "http://") && !strings.HasPrefix(urlStr, "https://") {
-			urlStr = "http://" + urlStr
+		var urlStr string
+		host, _, err := net.SplitHostPort(addr)
+		if err == nil {
+			urlStr = fmt.Sprintf("http://%s:%d", host, port)
+		} else {
+			urlStr = "http://" + addr
 		}
 		urlStr = fmt.Sprintf("%s/api/hypercacheio/add/%s?peer_check=1", strings.TrimRight(urlStr, "/"), key)
 

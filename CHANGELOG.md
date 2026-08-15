@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.4] - 2026-08-15
+
+### Fixed
+- **Go Server Consensus Port Resolution Mismatch**: Fixed a bug where `checkPeersLockAcquire()` and `checkPeersAdd()` attempted to send HTTP validation requests directly to the TCP replication port (e.g. `7400`) instead of the HTTP API port (e.g. `8185`). This mismatch caused HTTP client connection failures, malformed frames on the replication socket (which triggered disconnection and reconnect loops), and split-brain lock state issues. The Go server now correctly resolves and splits host-port inputs to target peer HTTP endpoints for consensus validation.
+
 ## [2.2.3] - 2026-08-15
 
 ### Fixed

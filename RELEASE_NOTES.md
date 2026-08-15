@@ -1,3 +1,15 @@
+# Release Notes - v2.2.4
+
+**Laravel Hyper-Cache-IO**
+
+This patch release fixes a critical consensus port mismatch in Active-Active HA mode that caused peer disconnection loops and split-brain lock acquisition.
+
+## 🛠️ Go Consensus Port Resolution Fix
+- **Split Host-Port for HTTP Calls**: Fixed `checkPeersLockAcquire()` and `checkPeersAdd()` in the Go server (`main.go`) to split host-port addresses and construct HTTP requests targeting the peer's configured HTTP API port rather than their TCP replication port. This resolves malformed socket errors and split-brain issues when running in HA mode.
+- **Rebuilt Binaries**: Compiled and packaged new pre-built binaries for all supported platforms under `build/`.
+
+---
+
 # Release Notes - v2.2.3
 
 **Laravel Hyper-Cache-IO**
