@@ -1,3 +1,22 @@
+# Release Notes - v2.2.6
+
+**Laravel Hyper-Cache-IO**
+
+This patch release documents the cleanups introduced in v2.2.5.
+
+---
+
+# Release Notes - v2.2.5
+
+**Laravel Hyper-Cache-IO**
+
+This release cleans up the package repository by removing pre-compiled Go server binaries from Git tracking.
+
+## 🛠️ Package Binaries Cleanup
+- **Untracked `build/`**: Removed the precompiled `build/` binaries from package repository Git tracking, as these binaries are managed and deployed inside the main project repository under `resources/hypercacheio/bin/`.
+
+---
+
 # Release Notes - v2.2.4
 
 **Laravel Hyper-Cache-IO**

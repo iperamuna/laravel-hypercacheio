@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.6] - 2026-08-15
+
+### Fixed
+- **Changelog Documentation**: Documented the v2.2.5 build directory cleanup in the changelog and release notes.
+
+## [2.2.5] - 2026-08-15
+
+### Changed
+- **Package Binaries**: Removed precompiled `build/` directory binaries from Git tracking in the package repository, as they are now tracked and deployed directly inside the main application repository under `resources/hypercacheio/bin/`.
+
 ## [2.2.4] - 2026-08-15
 
 ### Fixed
