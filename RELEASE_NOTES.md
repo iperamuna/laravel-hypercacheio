@@ -1,3 +1,14 @@
+# Release Notes - v2.2.3
+
+**Laravel Hyper-Cache-IO**
+
+This patch release fixes a critical integration bug where scheduler locks were permanently orphaned due to owner token mismatches during `forceRelease()`.
+
+## 🛠️ Scheduler forceRelease & Lock Orphan Fix
+- **Direct/Actual Owner Lock Release**: Updated `releaseLock()` in `HypercacheioStore.php` to fetch the actual lock owner from the Go server (under HA/Go server mode) or delete directly by key (under primary SQLite mode) instead of relying on the owner token passed by Laravel. This ensures `forceRelease()` (used by Laravel's scheduler upon task completion) succeeds and successfully removes the mutex lock, preventing tasks from getting stuck.
+
+---
+
 # Release Notes - v2.2.2
 
 **Laravel Hyper-Cache-IO**

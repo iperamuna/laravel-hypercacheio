@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.3] - 2026-08-15
+
+### Fixed
+- **Laravel Scheduler forceRelease Failure**: Updated `releaseLock()` to fetch the actual lock owner from the Go server (under HA/Go server mode) or delete directly by key (under primary SQLite mode) instead of relying on the owner token passed by Laravel. This fixes the issue where `forceRelease()` (used by Laravel's scheduler upon task completion) was rejected by the Go server due to owner token mismatches, causing scheduler locks to become permanently orphaned.
+
 ## [2.2.2] - 2026-08-15
 
 ### Fixed

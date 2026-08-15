@@ -408,13 +408,22 @@ class HypercacheioStore implements LockProvider, Store
     public function releaseLock($key, $owner)
     {
         if ($this->role === 'primary' && ! $this->haMode) {
-            $stmt = $this->sqlite->prepare('DELETE FROM cache_locks WHERE key=:key AND owner=:owner');
-            $stmt->execute([':key' => $key, ':owner' => $owner]);
+            // For forceRelease, we delete the key directly since Laravel's Lock class
+            // doesn't guarantee the correct owner is passed during forceRelease.
+            $stmt = $this->sqlite->prepare('DELETE FROM cache_locks WHERE key=:key');
+            $stmt->execute([':key' => $key]);
 
             return $stmt->rowCount() > 0;
         } else {
+            // Fetch the actual owner from the Go server so we can release it regardless
+            // of the owner string passed by Laravel (essential for forceRelease/scheduler).
+            $actualOwner = $this->getLockOwner($key);
+            if (empty($actualOwner)) {
+                return true;
+            }
+
             $response = $this->doRequest('delete', "lock/{$key}", [
-                'owner' => $owner,
+                'owner' => $actualOwner,
             ], true);
 
             return $response['released'] ?? false;
