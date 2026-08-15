@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.7] - 2026-08-15
+
+### Fixed
+- **Laravel Scheduler Lock Release**: Fixed a bug where atomic locks (such as scheduler mutexes) were never released on the Go server because `getLockOwner()` returned an empty string in secondary/HA client mode. Implemented `GET /api/hypercacheio/lock/{key}` on the Go server and updated the PHP store client to fetch the lock owner from the server.
+
 ## [2.2.6] - 2026-08-15
 
 ### Fixed

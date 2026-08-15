@@ -439,7 +439,9 @@ class HypercacheioStore implements LockProvider, Store
             return $stmt->fetchColumn() ?: '';
         }
 
-        return '';
+        $response = $this->doRequest('get', "lock/{$key}", [], true);
+
+        return $response['owner'] ?? '';
     }
 
     /**

@@ -1,8 +1,17 @@
-# Release Notes - v2.2.6
+# Release Notes - v2.2.7
 
 **Laravel Hyper-Cache-IO**
 
-This patch release documents the cleanups introduced in v2.2.5.
+This patch release fixes a critical integration bug where atomic locks (including scheduler mutexes) were permanently orphaned because the client failed to forward release requests to the Go server.
+
+## 🛠️ Lock Release & Scheduler Fixes
+- **GET Lock Endpoint**: Added support for the `GET` HTTP method in the Go server's `/api/hypercacheio/lock/*` handler to retrieve active lock owner strings.
+- **Client-Side Owner Lookup**: Updated `getLockOwner()` in the PHP client to fetch the lock owner from the Go server when operating in secondary or HA client mode.
+- **Rebuilt Binaries**: Compiled and packaged new Go server binaries with these changes.
+
+---
+
+# Release Notes - v2.2.6
 
 ---
 

@@ -1089,6 +1089,19 @@ func handleLock(w http.ResponseWriter, r *http.Request) {
 	key := "lock:" + strings.TrimPrefix(r.URL.Path, "/api/hypercacheio/lock/")
 
 	switch r.Method {
+	case "GET":
+		shard := cache.getShard(key)
+		shard.mutex.RLock()
+		item, exists := shard.items[key]
+		if exists && (item.Expiration == 0 || item.Expiration > time.Now().Unix()) {
+			shard.mutex.RUnlock()
+			writeJSON(w, map[string]interface{}{"owner": string(item.Value)})
+			return
+		}
+		shard.mutex.RUnlock()
+		writeJSON(w, map[string]interface{}{"owner": ""})
+		return
+
 	case "POST":
 		body, _ := io.ReadAll(r.Body)
 		var payload Payload

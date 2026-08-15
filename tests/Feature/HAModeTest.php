@@ -75,7 +75,7 @@ it('acquires locks synchronously in HA mode via Go server', function () {
     Cache::forgetDriver('hypercacheio');
 
     Http::fake([
-        'http://127.0.0.1:9090/api/hypercacheio/lock/*' => Http::response(['acquired' => true, 'released' => true], 200),
+        'http://127.0.0.1:9090/api/hypercacheio/lock/*' => Http::response(['acquired' => true, 'released' => true, 'owner' => 'test-owner'], 200),
     ]);
 
     $lock = Cache::store('hypercacheio')->lock('ha-lock-test', 10);
