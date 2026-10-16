@@ -388,27 +388,25 @@ func handleReplicationConn(conn net.Conn) {
 			if err == nil {
 				qm := queue.GetQueue(qName)
 				job := &queue.Job{ID: jobID, Payload: payload}
-				qm.Push(job, 0)
-                // We actually need to set the internal job.AvailableAt directly because qm.Push takes delay, but we already have absolute timestamp.
-                // Wait, Push takes `delay`. If we pass `delay`, it calculates `AvailableAt`.
-                // If we want exact replica, we should inject the job directly, but let's just re-calculate delay.
-                // Delay = avail - now.
-                now := time.Now().Unix()
-                delay := avail - now
-                if delay < 0 { delay = 0 }
-                qm.Push(job, delay)
+				now := time.Now().Unix()
+				delay := avail - now
+				if delay < 0 { delay = 0 }
+				qm.Push(job, delay)
+				api.PersistJob(job, qName, avail)
 			}
 		case OpQDel:
 			jobID, qName, err := readQDelFrame(reader)
 			if err == nil {
 				qm := queue.GetQueue(qName)
 				qm.Delete(jobID)
+				api.DeleteJob(jobID)
 			}
 		case OpQClear:
 			qName, err := readQClearFrame(reader)
 			if err == nil {
 				qm := queue.GetQueue(qName)
 				qm.Clear()
+				api.ClearQueueJobs(qName)
 			}
 		case OpFlush:
 			log.Printf("Received FLUSH from peer")
@@ -492,18 +490,21 @@ func handlePeerResponses(conn net.Conn) {
 				delay := avail - now
 				if delay < 0 { delay = 0 }
 				qm.Push(job, delay)
+				api.PersistJob(job, qName, avail)
 			}
 		case OpQDel:
 			jobID, qName, err := readQDelFrame(reader)
 			if err == nil {
 				qm := queue.GetQueue(qName)
 				qm.Delete(jobID)
+				api.DeleteJob(jobID)
 			}
 		case OpQClear:
 			qName, err := readQClearFrame(reader)
 			if err == nil {
 				qm := queue.GetQueue(qName)
 				qm.Clear()
+				api.ClearQueueJobs(qName)
 			}
 		case OpFlush:
 			flushLocal(false)

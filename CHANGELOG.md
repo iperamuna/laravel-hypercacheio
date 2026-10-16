@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.8] - 2026-10-16
+
+### Fixed
+- **Queue HA Peer Deletion & SQLite Synchronization**: Fixed an Active-Active HA queue replication bug where completed jobs remained orphaned in SQLite backing tables (`hypercacheio_queues`) with `State: ready` and 0 attempts on peer nodes. When a worker on one cluster node popped and completed a job, the receiving node processed the `OpQDel` replication frame in memory but never called `api.DeleteJob(jobID)` to remove the row from SQLite.
+- **Queue HA Clear Propagation**: Synchronized `OpQClear` across cluster nodes by adding `ClearQueueJobs()` to flush SQLite backing records on peer nodes when a queue is cleared.
+- **Queue HA Push Deduplication**: Removed an accidental duplicate in-memory push in `handleReplicationConn` and ensured incoming replicated jobs (`OpQPush`) are properly backed by `api.PersistJob()`.
+
 ## [2.2.7] - 2026-08-15
 
 ### Fixed

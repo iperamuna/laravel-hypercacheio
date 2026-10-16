@@ -1,3 +1,16 @@
+# Release Notes - v2.2.8
+
+**Laravel Hyper-Cache-IO**
+
+This patch release fixes an Active-Active HA queue replication bug where completed jobs became orphaned in the SQLite backing table on peer nodes, causing monitoring tools (like Vigilance) to report ghost "ready" jobs.
+
+## 🛠️ Queue HA Deletion & Persistence Synchronization
+- **Replication Delete in SQLite (`OpQDel`)**: Updated both replication handlers in `main.go` to call `api.DeleteJob(jobID)` when receiving an `OpQDel` tombstone from a cluster peer. Previously, jobs completed by a worker on a remote node were deleted from memory but remained stuck forever in the local SQLite table.
+- **Replication Clear in SQLite (`OpQClear`)**: Added `ClearQueueJobs()` to asynchronously wipe SQLite records for a cleared queue across all cluster nodes.
+- **Clean In-Memory Replication Push (`OpQPush`)**: Removed an redundant duplicate push in `handleReplicationConn` and ensured incoming replicated jobs are synchronized with SQLite persistence.
+
+---
+
 # Release Notes - v2.2.7
 
 **Laravel Hyper-Cache-IO**

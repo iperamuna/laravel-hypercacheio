@@ -25,6 +25,7 @@ func HandleQueueClear(w http.ResponseWriter, r *http.Request) {
 	for _, id := range deletedIds {
 		DeleteJob(id)
 	}
+	ClearQueueJobs(payload.Queue)
 
 	BroadcastQueueClear(payload.Queue)
 

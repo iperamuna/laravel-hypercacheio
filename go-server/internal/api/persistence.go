@@ -70,6 +70,11 @@ func StartQueueDbWorker(wg *sync.WaitGroup) {
 			if err != nil {
 				log.Printf("Queue DB DEL error: %v", err)
 			}
+		case "CLEAR":
+			_, err := db.Exec("DELETE FROM hypercacheio_queues WHERE queue_name = ?", job.queueName)
+			if err != nil {
+				log.Printf("Queue DB CLEAR error: %v", err)
+			}
 		}
 	}
 }
@@ -95,6 +100,16 @@ func DeleteJob(jobID string) {
 	}
 	select {
 	case queueDbChan <- queueDbJob{op: "DEL", jobID: jobID}:
+	default:
+	}
+}
+
+func ClearQueueJobs(queueName string) {
+	if db == nil {
+		return
+	}
+	select {
+	case queueDbChan <- queueDbJob{op: "CLEAR", queueName: queueName}:
 	default:
 	}
 }
