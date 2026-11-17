@@ -54,6 +54,7 @@ var (
 	peerAddrs    string
 	replPort     int
 	unixSocket   string
+	queueMaxAge  int64
 
 	db *sql.DB
 
@@ -141,6 +142,7 @@ func main() {
 	flag.StringVar(&peerAddrs, "peers", "", "Comma-separated list of peer addresses (host:port) for TCP replication")
 	flag.IntVar(&replPort, "repl-port", 7400, "Port to listen for incoming replication")
 	flag.StringVar(&unixSocket, "unix-socket", "", "Unix socket path for local HTTP API")
+	flag.Int64Var(&queueMaxAge, "queue-max-age", 604800, "Maximum age in seconds for queued jobs in SQLite before auto-pruning (default: 604800 = 7 days)")
 	flag.Parse()
 
 	// 2. Fallback to environment variables if flags are not set
@@ -165,10 +167,22 @@ func main() {
 	if host == "127.0.0.1" && os.Getenv("HYPERCACHEIO_GO_HOST") != "" {
 		host = os.Getenv("HYPERCACHEIO_GO_HOST")
 	}
+	if queueMaxAge <= 0 {
+		queueMaxAge = 604800
+	}
+	if os.Getenv("HYPERCACHEIO_QUEUE_MAX_AGE") != "" {
+		fmt.Sscanf(os.Getenv("HYPERCACHEIO_QUEUE_MAX_AGE"), "%d", &queueMaxAge)
+	}
 
 	if apiToken == "" {
 		log.Fatal("API Token is required (via --token flag or HYPERCACHEIO_API_TOKEN environment variable)")
 	}
+
+	// Wire up queue replication and distributed locking callbacks
+	api.BroadcastQueuePushFunc = broadcastQueuePush
+	api.BroadcastQueueDelFunc = broadcastQueueDel
+	api.BroadcastQueueClearFunc = broadcastQueueClear
+	api.AcquireDistributedLockFunc = acquireDistributedLock
 
 	// Initialize SQLite if provided (optional persistence)
 	if sqlitePath != "" && directSqlite {
@@ -197,6 +211,7 @@ func main() {
 		go api.StartQueueDbWorker(&dbWorkerWg)
 		
 		loadFromSqlite()
+		api.LoadQueueJobsFromSqlite(queueMaxAge)
 	}
 
 	// Start replication listener and connect to peers if HA mode is enabled
@@ -236,6 +251,7 @@ func main() {
 	mux.HandleFunc("/api/hypercacheio/queue/release", api.HandleQueueRelease)
 	mux.HandleFunc("/api/hypercacheio/queue/clear", api.HandleQueueClear)
 	mux.HandleFunc("/api/hypercacheio/queue/size/", api.HandleQueueSize)
+	mux.HandleFunc("/api/hypercacheio/queue/prune", api.HandleQueuePrune)
 
 	handler := authMiddleware(mux)
 

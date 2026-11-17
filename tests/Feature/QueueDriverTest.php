@@ -121,3 +121,10 @@ it('can delay jobs correctly', function () {
 
     $delayedJob->delete();
 });
+
+it('can prune jobs via hypercacheio queue', function () {
+    $queue = Queue::connection('hypercacheio');
+
+    $pruned = $queue->prune('default', 86400);
+    expect($pruned)->toBeGreaterThanOrEqual(0);
+});

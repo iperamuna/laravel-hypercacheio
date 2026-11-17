@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.9] - 2026-11-17
+
+### Fixed
+- **Active-Active HA Queue Replication Callback Wiring**: Hooked up previously unassigned callbacks `BroadcastQueuePushFunc`, `BroadcastQueueDelFunc`, `BroadcastQueueClearFunc`, and `AcquireDistributedLockFunc` in `main.go` so cross-node queue replication and distributed job locking operate seamlessly across cluster peers.
+- **Unconditional SQLite Queue Deletion**: Updated `HandleQueueDelete` to always delete job records from the SQLite backing store (`hypercacheio_queues`) and broadcast deletion frames to peers, even if the job was not found in local memory heaps.
+- **Non-Dropping Queue Deletion Fallback**: Prevented dropped SQLite job deletions when the persistence channel is saturated by executing background goroutines rather than discarding the operation.
+- **Startup Queue Hydration & Stale Job Pruning**: Implemented `LoadQueueJobsFromSqlite()` on Go daemon startup to automatically purge dead orphaned jobs older than the retention threshold (default 7 days) and re-hydrate active jobs into memory queues across daemon restarts.
+
+### Added
+- **Queue Pruning API & Artisan Command**: Added `POST /api/hypercacheio/queue/prune` to the Go daemon and `php artisan hypercacheio:queue-prune` to Laravel, allowing operators and automated schedulers to prune aged/orphaned records by days or hours.
+
 ## [2.2.8] - 2026-10-16
 
 ### Fixed

@@ -253,4 +253,27 @@ class HypercacheioQueue extends Queue implements ClearableQueue, QueueContract
 
         return 0;
     }
+
+    /**
+     * Prune old or orphaned jobs from the queue.
+     *
+     * @param  string|null  $queue
+     * @param  int  $olderThanSeconds
+     * @return int
+     */
+    public function prune($queue = null, int $olderThanSeconds = 604800): int
+    {
+        $queueName = $queue ? $this->getQueue($queue) : '';
+
+        $response = $this->syncRequest('post', '/api/hypercacheio/queue/prune', [
+            'queue' => $queueName,
+            'older_than_seconds' => $olderThanSeconds,
+        ]);
+
+        if ($response && isset($response['pruned'])) {
+            return (int) $response['pruned'];
+        }
+
+        return 0;
+    }
 }

@@ -1,3 +1,28 @@
+# Release Notes - v2.2.9
+
+**Laravel Hyper-Cache-IO**
+
+This release resolves queue replication desynchronization and lingering pending job entries in Active-Active High Availability environments, hardens SQLite queue persistence against dropped writes, introduces daemon startup hydration with automated stale job cleanup, and provides queue pruning capabilities via API and Artisan CLI.
+
+## 🛠️ Active-Active HA Queue Replication Callback Wiring
+- **Assigned Missing Queue Replication Hooks**: Wired previously unassigned replication callback hooks in `main.go` (`BroadcastQueuePushFunc`, `BroadcastQueueDelFunc`, `BroadcastQueueClearFunc`, and `AcquireDistributedLockFunc`). In previous releases, queue operations (push, del, clear) did not broadcast synchronization frames to peer nodes, leading to desynchronized queues across cluster nodes.
+- **Distributed Job Lock Verification**: Enabled cluster-wide distributed locking validation across peers before queue operations proceed, preventing race conditions between active nodes.
+
+## 🛠️ Unconditional SQLite Queue Cleanup & Resilient Persistence
+- **Unconditional Tombstone Cleanup (`HandleQueueDelete`)**: Updated `HandleQueueDelete` to unconditionally delete job records from the SQLite backing database (`hypercacheio_queues`) and broadcast deletion frames, even if the job had already been removed or popped from memory heaps.
+- **Non-Dropping Queue Deletion Fallback**: Upgraded persistence channel processing in `internal/api/persistence.go` so that if the SQLite write queue (`queueDbChan`) is saturated, deletion operations launch asynchronous fallback goroutines rather than being silently dropped.
+
+## 🛠️ Startup Queue Hydration & Stale Job Auto-Pruning
+- **Hydration on Startup**: Implemented `LoadQueueJobsFromSqlite()` in the Go server daemon to read persisted jobs from SQLite upon boot, repopulating memory heaps and ensuring uncompleted jobs survive daemon restarts.
+- **Boot-time Stale Purge**: Automatically prunes uncompleted/orphaned jobs older than the configurable retention threshold (default 7 days) during daemon startup to prevent indefinite accumulation of ghost jobs.
+
+## 🚀 Queue Pruning API & Artisan Command
+- **Go Daemon Pruning Endpoint**: Added `POST /api/hypercacheio/queue/prune` allowing administrative or automated cleanup of jobs older than specified hours or days.
+- **Artisan Command**: Introduced `php artisan hypercacheio:queue-prune --days=X --hours=Y` to easily schedule or manually trigger SQLite queue cleanup from Laravel.
+- **Queue Driver Prune Method**: Added `HypercacheioQueue::prune()` and `InteractsWithSqlite::pruneSqliteQueues()` to support both daemon API and direct SQLite pruning.
+
+---
+
 # Release Notes - v2.2.8
 
 **Laravel Hyper-Cache-IO**

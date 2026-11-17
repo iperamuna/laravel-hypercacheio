@@ -44,6 +44,43 @@ trait InteractsWithSqlite
                 owner TEXT NOT NULL,
                 expiration INTEGER
             );
+            CREATE TABLE IF NOT EXISTS hypercacheio_queues(
+                id TEXT PRIMARY KEY,
+                queue_name TEXT NOT NULL,
+                payload BLOB NOT NULL,
+                available_at INTEGER NOT NULL,
+                reserved_at INTEGER
+            );
+            CREATE INDEX IF NOT EXISTS idx_hypercacheio_queue_name ON hypercacheio_queues(queue_name);
+            CREATE INDEX IF NOT EXISTS idx_hypercacheio_available_at ON hypercacheio_queues(available_at);
         ');
+    }
+
+    /**
+     * Prune old or orphaned jobs directly from the SQLite database.
+     *
+     * @param  string|null  $queue
+     * @param  int  $olderThanSeconds
+     * @return int
+     */
+    public function pruneSqliteQueues(?string $queue = null, int $olderThanSeconds = 604800): int
+    {
+        if (! $this->sqlite) {
+            return 0;
+        }
+
+        $cutoff = time() - $olderThanSeconds;
+        $sql = 'DELETE FROM hypercacheio_queues WHERE available_at < :cutoff';
+        $params = [':cutoff' => $cutoff];
+
+        if ($queue !== null && $queue !== '') {
+            $sql .= ' AND queue_name = :queue';
+            $params[':queue'] = $queue;
+        }
+
+        $stmt = $this->sqlite->prepare($sql);
+        $stmt->execute($params);
+
+        return $stmt->rowCount();
     }
 }

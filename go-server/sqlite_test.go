@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/iperamuna/hypercacheio-server/internal/api"
 	"github.com/yvasiyarov/php_session_decoder/php_serialize"
 	_ "modernc.org/sqlite"
 )
@@ -266,5 +267,63 @@ func TestHandleItemsFiltering(t *testing.T) {
 
 	if items[0]["key"] != "valid" {
 		t.Errorf("Expected key 'valid', got %v", items[0]["key"])
+	}
+}
+
+func TestQueuePruneAndLoadFromSqlite(t *testing.T) {
+	tDB, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	api.SetDatabase(tDB)
+
+	now := time.Now().Unix()
+
+	// Insert an old job (10 days old) and a recent job (1 hour old)
+	tDB.Exec("INSERT INTO hypercacheio_queues(id, queue_name, payload, available_at) VALUES(?, ?, ?, ?)",
+		"job-old", "default", `{"displayName":"OldJob"}`, now-864000)
+	tDB.Exec("INSERT INTO hypercacheio_queues(id, queue_name, payload, available_at) VALUES(?, ?, ?, ?)",
+		"job-recent", "default", `{"displayName":"RecentJob"}`, now-3600)
+
+	// Load and prune with 7-day max age (604800s)
+	loaded, pruned := api.LoadQueueJobsFromSqlite(604800)
+	if pruned != 1 {
+		t.Errorf("Expected 1 pruned job, got %d", pruned)
+	}
+	if loaded != 1 {
+		t.Errorf("Expected 1 loaded job, got %d", loaded)
+	}
+
+	// Verify job-old was deleted and job-recent exists in SQLite
+	var count int
+	tDB.QueryRow("SELECT COUNT(*) FROM hypercacheio_queues WHERE id = 'job-old'").Scan(&count)
+	if count != 0 {
+		t.Errorf("Expected job-old to be deleted, but still exists")
+	}
+
+	tDB.QueryRow("SELECT COUNT(*) FROM hypercacheio_queues WHERE id = 'job-recent'").Scan(&count)
+	if count != 1 {
+		t.Errorf("Expected job-recent to exist, but count is %d", count)
+	}
+
+	// Test HandleQueuePrune endpoint
+	pruneBody := []byte(`{"queue": "default", "older_than_seconds": 1800}`)
+	req, _ := http.NewRequest("POST", "/api/hypercacheio/queue/prune", bytes.NewBuffer(pruneBody))
+	rr := httptest.NewRecorder()
+
+	api.HandleQueuePrune(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Errorf("HandleQueuePrune returned status %d", rr.Code)
+	}
+
+	var pruneResp map[string]interface{}
+	json.Unmarshal(rr.Body.Bytes(), &pruneResp)
+	if pruneResp["pruned"].(float64) != 1 {
+		t.Errorf("Expected 1 job pruned via API, got %v", pruneResp["pruned"])
+	}
+
+	// Verify job-recent is also deleted now
+	tDB.QueryRow("SELECT COUNT(*) FROM hypercacheio_queues WHERE id = 'job-recent'").Scan(&count)
+	if count != 0 {
+		t.Errorf("Expected job-recent to be pruned, but count is %d", count)
 	}
 }

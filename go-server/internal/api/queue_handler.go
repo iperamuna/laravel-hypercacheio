@@ -130,13 +130,15 @@ func HandleQueueDelete(w http.ResponseWriter, r *http.Request) {
 	qm := queue.GetQueue(payload.Queue)
 	deleted := qm.Delete(payload.ID)
 
-	if deleted {
-		DeleteJob(payload.ID)
-		BroadcastQueueDel(payload.ID, payload.Queue) // Send Tombstone to peers
-	}
+	// ALWAYS purge from persistent SQLite regardless of whether the job was in local memory
+	DeleteJob(payload.ID)
+
+	// Broadcast Tombstone to peer nodes in the cluster
+	BroadcastQueueDel(payload.ID, payload.Queue)
 
 	writeJSON(w, map[string]interface{}{
-		"success": deleted,
+		"success":             true,
+		"deleted_from_memory": deleted,
 	})
 }
 

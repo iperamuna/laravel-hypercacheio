@@ -34,6 +34,7 @@ class HypercacheioServiceProvider extends ServiceProvider
                 Console\GoServerCommand::class,
                 Console\ServiceUpdateCommand::class,
                 Console\HypercacheioTopCommand::class,
+                Console\QueuePruneCommand::class,
             ]);
         }
 
