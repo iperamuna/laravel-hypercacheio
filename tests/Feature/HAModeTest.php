@@ -3,12 +3,12 @@
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
-it('routes requests to local Go server in HA mode regardless of logical role', function () {
+it('serves reads locally and syncs writes to local Go server in HA mode', function () {
     // Enable HA mode and set server type to go
     config(['hypercacheio.go_server.ha_mode' => true]);
     config(['hypercacheio.server_type' => 'go']);
     config(['hypercacheio.go_server.port' => 9090]);
-    config(['hypercacheio.role' => 'primary']); // Logically primary, but in HA it becomes secondary internally
+    config(['hypercacheio.role' => 'primary']);
     config(['hypercacheio.async_requests' => false]);
     config(['cache.prefix' => '']);
 
@@ -17,27 +17,25 @@ it('routes requests to local Go server in HA mode regardless of logical role', f
 
     // Mock HTTP for the LOCAL Go server
     Http::fake([
-        'http://127.0.0.1:9090/api/hypercacheio/cache/ha-key' => Http::response(['data' => 'ha-value'], 200),
         'http://127.0.0.1:9090/api/hypercacheio/cache/*' => Http::response(['success' => true], 200),
     ]);
 
     $store = Cache::store('hypercacheio');
 
-    // GET should go to local Go server
-    $val = $store->get('ha-key');
-    expect($val)->toBe('ha-value');
-
-    Http::assertSent(function ($request) {
-        return str_contains($request->url(), '127.0.0.1:9090/api/hypercacheio/cache/ha-key')
-            && $request->method() === 'GET';
-    });
-
-    // PUT should go to local Go server
+    // PUT should write locally and sync to local Go server
     $store->put('ha-put', 'value', 60);
 
     Http::assertSent(function ($request) {
         return str_contains($request->url(), '127.0.0.1:9090/api/hypercacheio/cache/ha-put')
             && $request->method() === 'POST';
+    });
+
+    // GET should be served locally from memory / SQLite without an HTTP call
+    $val = $store->get('ha-put');
+    expect($val)->toBe('value');
+
+    Http::assertNotSent(function ($request) {
+        return $request->method() === 'GET' && str_contains($request->url(), '/cache/');
     });
 });
 

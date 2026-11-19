@@ -87,39 +87,42 @@ it('performs secondary role operations correctly via HTTP', function () {
 
     // Mock HTTP for Secondary
     Http::fake([
-        '*/api/hypercacheio/cache/key_sec' => Http::response(json_encode(['data' => 'value_sec']), 200),
         '*/api/hypercacheio/cache/*' => Http::response(['success' => true], 200),
         '*/api/hypercacheio/add/*' => Http::response(['added' => true], 200),
         '*/api/hypercacheio/touch/*' => Http::response(['touched' => true], 200),
     ]);
 
-    $store = Cache::store('hypercacheio')->getStore();
+    $store = Cache::store('hypercacheio');
 
-    // Put -> HTTP Post
-    Cache::store('hypercacheio')->put('key_put', 'val_put', 60);
+    // Put -> Local write + HTTP Post
+    $store->put('key_put', 'val_put', 60);
 
     Http::assertSent(function ($request) {
         return str_contains($request->url(), '/cache/key_put') && $request->method() === 'POST';
     });
 
-    // Get -> HTTP Get
-    $val = Cache::store('hypercacheio')->get('key_sec');
-    expect($val)->toBe('value_sec');
+    // Get -> Local read without HTTP
+    $val = $store->get('key_put');
+    expect($val)->toBe('val_put');
+
+    Http::assertNotSent(function ($request) {
+        return $request->method() === 'GET' && str_contains($request->url(), '/cache/');
+    });
 
     // Add -> HTTP Post
-    $added = Cache::store('hypercacheio')->add('key_add', 'val_add', 60);
+    $added = $store->add('key_add', 'val_add', 60);
     expect($added)->toBeTrue();
 
     Http::assertSent(function ($request) {
         return str_contains($request->url(), '/add/key_add') && $request->method() === 'POST';
     });
 
-    // Touch -> HTTP Post
-    $touched = Cache::store('hypercacheio')->touch('key_touch', 120);
+    // Touch -> Local + HTTP Post
+    $touched = $store->touch('key_put', 120);
     expect($touched)->toBeTrue();
 
     Http::assertSent(function ($request) {
-        return str_contains($request->url(), '/touch/key_touch') && $request->method() === 'POST';
+        return str_contains($request->url(), '/touch/key_put') && $request->method() === 'POST';
     });
 });
 
@@ -173,24 +176,29 @@ it('can retrieve keys matching a pattern in primary role', function () {
     }
 });
 
-it('can retrieve keys matching a pattern in secondary role via HTTP', function () {
+it('can retrieve keys matching a pattern in secondary role locally', function () {
     config(['hypercacheio.role' => 'secondary']);
     config(['hypercacheio.primary_url' => 'http://test-primary/api/hypercacheio']);
     config(['hypercacheio.async_requests' => false]);
+    config(['cache.prefix' => '']);
     Cache::forgetDriver('hypercacheio');
 
     Http::fake([
-        '*/keys*' => Http::response(['keys' => ['import_so_slug_1', 'import_so_slug_2']], 200),
+        '*/api/hypercacheio/cache/*' => Http::response(['success' => true], 200),
     ]);
 
-    $keys = Cache::store('hypercacheio')->keys('import_so_slug_*');
+    $store = Cache::store('hypercacheio');
+    $store->put('import_so_slug_1', 'val1', 60);
+    $store->put('import_so_slug_2', 'val2', 60);
+    $store->put('other_key', 'val3', 60);
+
+    $keys = $store->keys('import_so_slug_*');
 
     expect($keys)->toHaveCount(2)
         ->toContain('import_so_slug_1')
         ->toContain('import_so_slug_2');
 
-    Http::assertSent(function ($request) {
-        return str_contains($request->url(), '/keys') &&
-               str_contains($request->url(), 'pattern=import_so_slug_%2A');
+    Http::assertNotSent(function ($request) {
+        return str_contains($request->url(), '/keys');
     });
 });
