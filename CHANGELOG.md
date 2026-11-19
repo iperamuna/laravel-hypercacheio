@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-11-19
+
+### Performance
+- **Zero-HTTP Local Cache Lookups**: Optimized `HypercacheioStore` (`get()`, `many()`, `has()`, and wildcard key lookups `getPrefixKeys()`) to resolve directly against local in-memory storage and the local SQLite database without making blocking HTTP calls to local daemons or cluster peers, delivering sub-millisecond cache reads.
+- **Asynchronous Peer Replication for Cache Mutations**: Cache mutations (`put()`, `putMany()`, `forever()`, `forget()`, `flush()`) update local storage immediately and dispatch background synchronization to cluster peers and Go daemons asynchronously.
+- **Synchronous Distributed Locking & Atomic Coordination**: Retained synchronous HTTP coordination strictly for atomic distributed locks (`lock()`, `restoreLock()`) and atomic `add()` operations to maintain strong consistency and prevent race conditions.
+- **Double-Serialization Safeguard**: Added automatic unwrapping of nested serialized strings during cache deserialization to ensure seamless consistency between PHP processes and background Go persistence workers.
+
+### Changed
+- **Test Suite Updates**: Updated test suites in `CacheStoreTest` and `HAModeTest` to assert local SQLite/memory read operations and verify synchronous lock behavior alongside async peer replication.
+
 ## [2.2.9] - 2026-11-17
 
 ### Fixed

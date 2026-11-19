@@ -1,3 +1,21 @@
+# Release Notes - v2.3.0
+
+**Laravel Hyper-Cache-IO**
+
+This release introduces an architectural performance leap for Hyper-Cache-IO by eliminating synchronous HTTP roundtrips on cache reads in High Availability and multi-node clusters. Lookups are now served directly from local memory and SQLite stores at near-zero latency, with asynchronous peer replication for writes and strict synchronous consensus retained for distributed locks.
+
+## ⚡ Zero-HTTP Local Memory & SQLite Cache Lookups
+- **Sub-Millisecond Cache Reads**: `Cache::get()`, `Cache::many()`, `Cache::has()`, and wildcard prefix searches (`Cache::keys()`) now read directly from local in-memory buffers and SQLite backing tables, completely bypassing network / HTTP hops to the local Go server or cluster peers.
+- **Async Peer Replication**: Cache write operations (`put()`, `putMany()`, `forever()`, `forget()`, `flush()`) update the local database immediately and propagate changes to peers in the background.
+
+## 🔒 Preserved Strict Synchronous Distributed Locking
+- **Zero Race Conditions on Mutexes**: Synchronous HTTP calls are strictly reserved for atomic distributed lock acquisition and release (`lock()`, `restoreLock()`) as well as atomic `add()` coordination across nodes, ensuring full consistency across active-active worker nodes.
+
+## 🛠️ Resilient Cache Deserialization
+- **Double-Serialization Safeguard**: Added defensive unwrapping for nested serialized string payloads stored by background Go persistence workers to guarantee consistent PHP object restoration.
+
+---
+
 # Release Notes - v2.2.9
 
 **Laravel Hyper-Cache-IO**

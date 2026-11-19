@@ -5,6 +5,7 @@ vendor/
 *.sqlite
 *.sqlite-journal
 *.sqlite-wal
+*.sqlite-shm
 *.log
 composer.lock
 phpunit.xml
@@ -13,3 +14,4 @@ iperamuna.hypercacheio.server.plist
 hypercacheio-server.service
 build/
 tests/bin/
+tests/Feature/temp_*/

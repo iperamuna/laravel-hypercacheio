@@ -13,6 +13,8 @@ Designed for modern PHP environments like **FrankenPHP**, **Swoole**, and tradit
 ## ⚡ Features
 
 - **🚀 High Performance**: Built on SQLite WAL (Write-Ahead Logging) for lightning-fast reads and writes.
+- **⚡ In-Memory & Local SQLite Lookups**: Zero HTTP roundtrips on cache reads; lookups resolve directly from local memory or SQLite store for sub-millisecond responses.
+- **🔄 Async Peer Synchronization**: Cache writes update locally and broadcast to cluster peers asynchronously, reserving synchronous HTTP requests strictly for atomic distributed locks.
 - **🏘️ Sharded Architecture**: Native 32-shard memory mapping to eliminate lock contention on multi-core systems.
 - **⚡ Async Persistence**: High-speed background persistence worker for non-blocking writes.
 - **🧠 L1 In-Memory Cache**: Ephemeral memory caching for instant access during the request lifecycle.
